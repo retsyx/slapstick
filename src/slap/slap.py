@@ -4,7 +4,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# $Id: slap.py $
+# $Id$
 
 # slapstick - Simple, low-tech audio player for your memory stick
 import mcurses as curses
