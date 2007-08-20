@@ -9,7 +9,7 @@
 # slapstick - Simple, low-tech audio player for your memory stick
 import mcurses as curses
 import mselect as select
-import os, socket, re, sys, threading, time
+import fnmatch, os, socket, re, sys, threading, time
 import mutagen, mutagen.easyid3
 import player
 from mcurses import textbox
@@ -495,17 +495,10 @@ def filespec_match(split_filename, file_spec):
 def list_files(path='.', file_specs=()):
     all_filenames = []
     for root, dirs, files in os.walk(path):
+        filenames = []
+        for fspc in file_specs:
+            filenames += fnmatch.filter(files, fspc)
         filenames = [os.path.join(root, fn) for fn in files]
-        split_filenames = [os.path.splitext(fn) for fn in filenames]
-        filtered_filenames = []
-        if len(file_specs) == 0: 
-            filtered_filenames = split_filenames
-        else:
-            for fspc in file_specs:
-                filtered_filenames += [filespec_match(sfn, fspc) for sfn in split_filenames]
-        split_filenames = filtered_filenames
-        filenames = [''.join(sfn) for sfn in split_filenames]
-        while '' in filenames: filenames.remove('')
         all_filenames += filenames
         # traverse symbolic links
         for d in dirs:
@@ -537,8 +530,7 @@ def scan_media_file(filename):
         if not artist and not title:
             info[0] = os.path.basename(filename)
         else:
-            t = [artist, album, title]
-            while None in t: t.remove(None)
+            t = [tt for tt in [artist, album, title] if tt != None]
             info[DB_DISPLAY] = ' - '.join(t).encode('latin-1', 'replace') # could make configurable
     except:
         info[DB_DISPLAY] = os.path.splitext(os.path.basename(filename))[0]
@@ -610,7 +602,7 @@ def main():
     global g_stats, g_file_db
     print 'Scanning files...'
     g_stats.scan_start = time.time()
-    filenames = list_files(path='./media', file_specs=('.mp3',)) # for now only support mp3
+    filenames = list_files(path='./media', file_specs=('*.mp3',)) # for now only support mp3
     g_file_db = scan_media_files(filenames)
     sort_media_files(g_file_db)
     g_stats.scan_time = time.time() - g_stats.scan_start
