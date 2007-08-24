@@ -8,7 +8,7 @@
 
 # script to gather and layout Python source files in the build directory along with potentially
 # building mpg123 and Windows extensions.
-# XXX This is a giant hack
+# XXX This is a giant hack. No effort has been made to make it maintainable.
 # XXX maybe this can be more cleanly implemented as a setup.py script?
 # XXX currently no provisions for Windows build
 
@@ -77,7 +77,22 @@ def mpg123_clean(mpg123_dir):
     finally:
         os.chdir(o_dir)
     
+def wcurses_build(wcurses_dir, target='Release'):
+    o_dir = os.getcwd()
+    try:
+        os.chdir(wcurses_dir)
+        subprocess.check_call(['vcbuild', 'wcurses.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
+    return os.path.join(wcurses_dir, target, '_wcurses_c.pyd')    
 
+def wcurses_clean(wcurses_dir, target='Release'):
+    o_dir = os.getcwd()
+    try:
+        os.chdir(wcurses_dir)
+        subprocess.check_call(['vcbuild', '/c', 'wcurses.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
 # Steps:
 # Create destination directories
 # Copy Python code
@@ -89,6 +104,7 @@ def cmd_build():
     for d in dirs:
         if d[1] != '':
             dir_create(os.path.join(dir_base_dst, d[1]))
+
     print 'Copying Python files'
     for d in dirs:
         if len(d[2]) == 0: continue
@@ -102,14 +118,27 @@ def cmd_build():
     print 'Searching for existing mpg123 in path'
     mpg123_binary_path_src = file_binary_find('mpg123')
     if mpg123_binary_path_src != None:
-        print 'Using system copy of mpg123'
+        print 'Copying system mpg123'
     else:
         print 'Building mpg123'
         mpg123_dir = os.path.join(dir_base_src, 'mpg123')
         mpg123_binary_path_src = mpg123_build(mpg123_dir)
     file_copy_newer(mpg123_binary_path_src, mpg123_binary_path_dst)
 
+    if platform.system() == 'Windows':
+        print 'Building wcurses'
+        wcurses_dir = os.path.join(dir_base_src, 'mcurses', 'wcurses')
+        wcurses_binary_path_src = wcurses_build(wcurses_dir)
+        wcurses_binary_path_dst = os.path.join(dir_base_dst, 'mcurses', os.path.basename(wcurses_binary_path_src)) 
+        file_copy_newer(wcurses_binary_path_src, wcurses_binary_path_dst)
+        wcurses_py_path_src = os.path.join(wcurses_dir, 'wcurses_c.py')
+        wcurses_py_path_dst = os.path.join(dir_base_dst, 'mcurses', 'wcurses_c.py')
+        file_copy_newer(wcurses_py_path_src, wcurses_py_path_dst)
+    
 def cmd_clean():
+    print 'Cleaning wcurses workspace'
+    wcurses_dir = os.path.join(dir_base_src, 'mcurses', 'wcurses')
+    wcurses_clean(wcurses_dir)    
     print 'Cleaning mpg123 workspace'
     mpg123_dir = os.path.join(dir_base_src, 'mpg123')
     mpg123_clean(mpg123_dir)
@@ -122,7 +151,7 @@ def cmd_clean():
             os.unlink(os.path.join(dir_base_dst, f))
         except:
             pass
-        
+    
 dir_base_src = './src'
 dir_base_dst = './build'
 
@@ -144,4 +173,4 @@ else:
     cmd_arg = sys.argv[1]
     
 cmds[cmd_arg]()
-        
+print '\nOK'
