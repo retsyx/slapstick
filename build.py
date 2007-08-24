@@ -78,10 +78,21 @@ def mpg123_unix_clean(mpg123_dir):
         os.chdir(o_dir)
 
 def mpg123_windows_build(mpg123_dir, target='Release'):
-    pass
+    o_dir = os.getcwd()
+    try:
+        os.chdir(mpg123_dir)
+        subprocess.check_call(['vcbuild', 'mpg123.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
+    return os.path.join(mpg123_dir, target, 'mpg123.exe')    
 
 def mpg123_windows_clean(mpg123_dir, target='Release'):
-    pass
+    o_dir = os.getcwd()
+    try:
+        os.chdir(mpg123_dir)
+        subprocess.check_call(['vcbuild', '/c', 'mpg123.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
 
 def wcurses_build(wcurses_dir, target='Release'):
     o_dir = os.getcwd()
@@ -150,10 +161,11 @@ def cmd_build():
         print 'Copying system mpg123'
     else:
         print 'Building mpg123'
-        mpg123_dir = os.path.join(dir_base_src, 'mpg123')
         if platform.system() == 'Windows':
+            mpg123_dir = os.path.join(dir_base_src, 'mpg123-win')
             mpg123_binary_path_src = mpg123_windows_build(mpg123_dir)
         else:
+            mpg123_dir = os.path.join(dir_base_src, 'mpg123')
             mpg123_binary_path_src = mpg123_unix_build(mpg123_dir)
     file_copy_newer(mpg123_binary_path_src, mpg123_binary_path_dst)
 
@@ -184,8 +196,12 @@ def cmd_clean():
     wcurses_dir = os.path.join(dir_base_src, 'mcurses', 'wcurses')
     wcurses_clean(wcurses_dir)    
     print 'Cleaning mpg123 workspace'
-    mpg123_dir = os.path.join(dir_base_src, 'mpg123')
-    mpg123_unix_clean(mpg123_dir)
+    if platform.system() == 'Windows':
+        mpg123_dir = os.path.join(dir_base_src, 'mpg123-win')
+        mpg123_binary_path_src = mpg123_windows_clean(mpg123_dir)
+    else:
+        mpg123_dir = os.path.join(dir_base_src, 'mpg123')
+        mpg123_unix_clean(mpg123_dir)
     print 'Deleting files in build area'
     for d in dirs:
         if d[1] != '':
