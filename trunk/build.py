@@ -190,11 +190,12 @@ def cmd_build():
     
 def cmd_clean():
     print 'Cleaning wselect workspace'
-    wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
-    wselect_clean(wselect_dir)
-    print 'Cleaning wcurses workspace'
-    wcurses_dir = os.path.join(dir_base_src, 'mcurses', 'wcurses')
-    wcurses_clean(wcurses_dir)    
+    if platform.system() == 'Windows':
+        wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
+        wselect_clean(wselect_dir)
+        print 'Cleaning wcurses workspace'
+        wcurses_dir = os.path.join(dir_base_src, 'mcurses', 'wcurses')
+        wcurses_clean(wcurses_dir)    
     print 'Cleaning mpg123 workspace'
     if platform.system() == 'Windows':
         mpg123_dir = os.path.join(dir_base_src, 'mpg123-win')
