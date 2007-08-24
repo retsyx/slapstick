@@ -191,12 +191,18 @@ class Window(object):
     def clrtoeol(self):
         x, y = self.xy
         buf = self.buf
+        attrs = self.attrs
         if y >= len(buf): return
         if x >= len(buf[y]): return
         new_buf = [ascii.SP for xxx in xrange(len(buf[y]) - x)]
         if buf[y][x:] != new_buf:
             buf[y][x:] = new_buf
             self.dirty[y] = 1
+        new_attrs = [self.default_attr for xxx in xrange(len(attrs[y]) - x)]
+        if attrs[y][x:] != new_attrs:
+            attrs[y][x:] = new_attrs
+            self.dirty[y] = 1
+            
     
     def delch(self, y=None, x=None):
         if x != None and y != None:
@@ -310,13 +316,11 @@ class Window(object):
         for y in xrange(self.rect[1], self.rect[3]):
             if self.dirty[y-self.rect[1]]:
                 lnsx = self.attrs[y-self.rect[1]][:sx]
-                lnsx_len = len(lnsx)
                 self._ptr_array_build(a, lnsx)
-                wc.write_row_attrs(x, y, lnsx_len, a)
+                wc.write_row_attrs(x, y, len(lnsx), a)
                 lnsx = self.buf[y-self.rect[1]][:sx]
-                lnsx_len = len(lnsx)
                 self._ptr_array_build(a, lnsx)
-                wc.write_row_chars(x, y, lnsx_len, a)
+                wc.write_row_chars(x, y, len(lnsx), a)
                 self.dirty[y-self.rect[1]] = 0
         wc.delete_short_array(a)        
         # restore cursor

@@ -159,11 +159,17 @@ def display_setup(scr):
     scr_maxyx = display.scr.getmaxyx()
     scr_maxxy = scr_maxyx[1], scr_maxyx[0]
 
+    # status
+    display.status_off = (0, 0)
+    display.status_size = (1, 1)
+    display.status_scr = scr.derwin(display.status_size[1], display.status_size[0],
+                                    display.status_off[1], display.status_off[0])
+
     # textbox/pad
     display.pad_off = (2, 0)
     display.pad_size = (scr_maxxy[0] - display.pad_off[0], 1)
     display.pad_scr = scr.derwin(display.pad_size[1], display.pad_size[0], 
-                                      display.pad_off[1], display.pad_off[0])
+                                 display.pad_off[1], display.pad_off[0])
     display.pad = textbox.Textbox(display.pad_scr, slap_validate, slap_callback)
     display.pad.stripspaces = False
     # list
@@ -180,15 +186,16 @@ def display_setup(scr):
     # help
     display.help_list = wList(display.list_scr)
     display.help_list.mode = display.help_list.MODE_VIEW
-    scr.clear()
 
-    display.scr.addstr(0, 3, 'For help at any point press <ESC> H'[:scr_maxxy[0]-3], curses.A_STANDOUT)
+    scr.clear()
+    scr.refresh()
+    display.pad_scr.addstr(0, 0, '  For help at any point press <ESC> H  '[:scr_maxxy[0]-3], curses.A_STANDOUT)
     display.showing_help = 1
 
     return display
 
 def display_update(display, mode, player_controller):
-    display.scr.refresh()
+    display.status_scr.refresh()
     display.pad.win.refresh()
     if mode in (MODE_LIST, MODE_SEARCH):
         display.select_list.draw()
@@ -209,25 +216,25 @@ def slap_enter_mode(new_mode):
     if mode == new_mode: return
     if new_mode != MODE_LIST:
         if display.showing_help: # clear out startup help message
-            display.scr.move(0, 3)
-            display.scr.clrtoeol()
+            display.pad_scr.move(0, 0)
+            display.pad_scr.clrtoeol()
             display.showing_help = 0
     if new_mode == MODE_LIST:
         if g_file_active_set != g_file_db:
-            display.scr.addch(0, 0, '=')
+            display.status_scr.addch(0, 0, '=')
         else:
-            display.scr.addch(0, 0, ' ')
+            display.status_scr.addch(0, 0, ' ')
     elif new_mode == MODE_QUEUE:
-        display.scr.addch(0, 0, 'Q')
+        display.status_scr.addch(0, 0, 'Q')
         display.queue_list.set_items(player_controller.track_list)
         display.queue_list.view_center(player_controller.position)
     elif new_mode == MODE_SEARCH:
-        display.scr.addch(0, 0, '>')
+        display.status_scr.addch(0, 0, '>')
     elif new_mode == MODE_HELP:
-        display.scr.addch(0, 0, 'H')
+        display.status_scr.addch(0, 0, 'H')
         slap_print_help(display.help_list)
     elif new_mode == MODE_STATS:
-        display.scr.addch(0, 0, 'S')
+        display.status_scr.addch(0, 0, 'S')
         slap_print_stats(display.help_list)
         
     g_mode = new_mode
@@ -242,7 +249,7 @@ def slap_validate(key_code):
             g_file_active_set = g_file_db
             display.select_list.set_items(g_file_active_set)
             display.pad.clear()
-            display.scr.addch(0, 0, ' ')
+            display.status_scr.addch(0, 0, ' ')
         elif key_code in (curses.ascii.NL, curses.ascii.CR): # ENTER (PLAY track list)
             player_controller.start_track_list(g_file_active_set[display.select_list.cursor:])
         elif key_code in (ord("\\"), ord('|')): # '" (QUEUE track)
