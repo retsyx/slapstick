@@ -161,7 +161,7 @@ def display_setup(scr):
 
     # status
     display.status_off = (0, 0)
-    display.status_size = (1, 1)
+    display.status_size = (1, 2)
     display.status_scr = scr.derwin(display.status_size[1], display.status_size[0],
                                     display.status_off[1], display.status_off[0])
 
