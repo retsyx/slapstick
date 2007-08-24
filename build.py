@@ -127,6 +127,28 @@ def wselect_clean(wcurses_dir, target='Release'):
         subprocess.check_call(['vcbuild', '/c', 'wselect.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
     finally:
         os.chdir(o_dir)
+
+def env_var_test():
+    print 'Testing environment'
+    env = {}
+    env['PYTHON_INCLUDE'] = os.getenv('PYTHON_INCLUDE')
+    env['PYTHON_LIB'] = os.getenv('PYTHON_LIB')
+    env['SWIG_BIN'] = os.getenv('SWIG_BIN')
+    for k, v in env.iteritems():
+        if v:
+            print k, '=', v
+        else:
+            print k, '?'
+    if None in env.values():
+        raise Exception, 'Missing environment variable'
+    print 'Environment variables seem OK'
+
+def env_msvc_test():
+    print 'Testing MSVC environment'
+    # do this by attempting to execute vcbuild
+    subprocess.check_call(['vcbuild', '/?'], stdout=0, stderr=0)
+    print 'MSVC environment seems to be OK'
+    
         
 # Steps:
 # Create destination directories
@@ -135,6 +157,10 @@ def wselect_clean(wcurses_dir, target='Release'):
 # copy mpg123 to build
 # On Windows build wcurses and wselect and copy
 def cmd_build():
+    if platform.system() == 'Windows':
+        env_var_test()
+        env_msvc_test()
+        
     print 'Creating directories'
     for d in dirs:
         if d[1] != '':
@@ -189,6 +215,8 @@ def cmd_build():
         file_copy_newer(wselect_py_path_src, wselect_py_path_dst)
     
 def cmd_clean():
+    if platform.system() == 'Windows':
+        env_msvc_test()
     print 'Cleaning wselect workspace'
     if platform.system() == 'Windows':
         wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
