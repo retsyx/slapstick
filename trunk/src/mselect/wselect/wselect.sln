@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual C++ Express 2005
+Project("{8B01FBA8-4444-1111-DDDD-00A982638402}") = "wselect_c", "wselect.vcproj", "{12345678-6339-4444-AAAA-123456789855}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{12345678-6339-4444-AAAA-123456789855}.Debug|Win32.ActiveCfg = Debug|Win32
+		{12345678-6339-4444-AAAA-123456789855}.Debug|Win32.Build.0 = Debug|Win32
+		{12345678-6339-4444-AAAA-123456789855}.Release|Win32.ActiveCfg = Release|Win32
+		{12345678-6339-4444-AAAA-123456789855}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

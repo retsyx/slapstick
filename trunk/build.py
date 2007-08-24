@@ -93,6 +93,24 @@ def wcurses_clean(wcurses_dir, target='Release'):
         subprocess.check_call(['vcbuild', '/c', 'wcurses.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
     finally:
         os.chdir(o_dir)
+
+def wselect_build(wcurses_dir, target='Release'):
+    o_dir = os.getcwd()
+    try:
+        os.chdir(wcurses_dir)
+        subprocess.check_call(['vcbuild', 'wselect.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
+    return os.path.join(wcurses_dir, target, '_wselect_c.pyd')    
+
+def wselect_clean(wcurses_dir, target='Release'):
+    o_dir = os.getcwd()
+    try:
+        os.chdir(wcurses_dir)
+        subprocess.check_call(['vcbuild', '/c', 'wselect.vcproj', target], stdout=sys.stdout, stderr=sys.stderr)
+    finally:
+        os.chdir(o_dir)
+        
 # Steps:
 # Create destination directories
 # Copy Python code
@@ -122,8 +140,8 @@ def cmd_build():
     else:
         print 'Building mpg123'
         mpg123_dir = os.path.join(dir_base_src, 'mpg123')
-        mpg123_binary_path_src = mpg123_build(mpg123_dir)
-    file_copy_newer(mpg123_binary_path_src, mpg123_binary_path_dst)
+        #mpg123_binary_path_src = mpg123_build(mpg123_dir)
+    #file_copy_newer(mpg123_binary_path_src, mpg123_binary_path_dst)
 
     if platform.system() == 'Windows':
         print 'Building wcurses'
@@ -134,6 +152,15 @@ def cmd_build():
         wcurses_py_path_src = os.path.join(wcurses_dir, 'wcurses_c.py')
         wcurses_py_path_dst = os.path.join(dir_base_dst, 'mcurses', 'wcurses_c.py')
         file_copy_newer(wcurses_py_path_src, wcurses_py_path_dst)
+
+        print 'Building wselect'
+        wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
+        wselect_binary_path_src = wselect_build(wselect_dir)
+        wselect_binary_path_dst = os.path.join(dir_base_dst, 'mselect', os.path.basename(wselect_binary_path_src)) 
+        file_copy_newer(wselect_binary_path_src, wselect_binary_path_dst)
+        wselect_py_path_src = os.path.join(wselect_dir, 'wselect_c.py')
+        wselect_py_path_dst = os.path.join(dir_base_dst, 'mselect', 'wselect_c.py')
+        file_copy_newer(wselect_py_path_src, wselect_py_path_dst)
     
 def cmd_clean():
     print 'Cleaning wcurses workspace'
