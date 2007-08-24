@@ -3,7 +3,7 @@
 	ProjectType="Visual C++"
 	Version="8.00"
 	Name="wcurses_c"
-	ProjectGUID="{85F01171-6CBB-4AD2-AFA4-ABCBCDEF8201}"
+	ProjectGUID="{00000000-6CBB-4AD2-AFA4-ABCDEF012256}"
 	RootNamespace="wcurses"
 	Keyword="Win32Proj"
 	>
@@ -66,9 +66,9 @@
 				AdditionalDependencies="kernel32.lib $(NoInherit) &quot;$(PYTHON_LIB)&quot;"
 				OutputFile="$(OutDir)\_$(ProjectName).pyd"
 				LinkIncremental="2"
-				GenerateManifest="false"
+				GenerateManifest="true"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -125,6 +125,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(PYTHON_INCLUDE)"
 				PreprocessorDefinitions="WIN32;NDEBUG"
+				ExceptionHandling="0"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -145,11 +146,12 @@
 				AdditionalDependencies="&quot;$(PYTHON_LIB)&quot;"
 				OutputFile="$(OutDir)\_$(ProjectName).pyd"
 				LinkIncremental="1"
-				GenerateManifest="false"
+				GenerateManifest="true"
 				GenerateDebugInformation="false"
-				SubSystem="2"
+				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				OptimizeForWindows98="1"
 				TargetMachine="1"
 			/>
 			<Tool
