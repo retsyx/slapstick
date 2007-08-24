@@ -92,9 +92,9 @@ class PlayerController(object):
         """ Immediately start playing track list """
         if self.player.status() != STOPPED: self.ignore_stop = 1
         self.player.stop()
-        self.track_list = track_list[:]
+        self.position = len(self.track_list) - 1
+        self.track_list.extend(track_list)
         if len(track_list) == 0: return
-        self.position = -1
         self.next_track()
 
     def queue_track_list(self, track_list):
