@@ -1,17 +1,24 @@
 Building and using Slap
 =======================
 
-On all systems Slap needs Python 2.5 (or better) installed to build and run. 
+On all systems Slap needs Python 2.5 (or better) and a C compiler to build and run. 
 Once Slap is built (see below):
-1. Place all media files under the media directory in the Slap directory
+1. Place all media files under the 'media' directory in the Slap directory
 2. Execute slap.py
 
 Slap is built with a Python script called build.py. It is written such that errors are Python exceptions. If you encounter an exception when running build.py, then the build failed and it's probably not a bug in the script.
 
+The build script will attempt to locate an existing mpg123 binary in your search path (under the assumption that it is more likely to work on your system). If it finds the binary it will copy it instead of compiling a new one.
+
+Running Slap on multiple operating systems
+==========================================
+
+As noted, Slap requires Python on the host system. It also requires an mpg123 binary on the USB stick. Slap is designed so that multiple binaries for different OSs can exist on the USB stick at once. Currently, build.py will place the binary generated for the OS it was run on. To support more systems, build Slap on the system you want support for and copy the generated mpg123 binary (placed in the 'player' directory) to the 'player' directory on your USB stick. At some point in the future build.py may be extended and also placed on the USB stick (along with mpg123 source) to allow you to build new binaries on any new system you encounter.
+
 Building Slap on *nix
 =====================
 
-In the Slap directory execute build.py. If all goes well, the 'build' directory should now contain a fully formed Slap setup that you can run and copy to your USB stick.
+Gcc is required to build mpg123. In the Slap directory execute build.py. If all goes well, the 'build' directory should now contain a fully formed Slap setup that you can run and copy to your USB stick.
 
 Building Slap on Windows
 ========================
@@ -30,7 +37,7 @@ Once the above are installed, you need to set a few environment variables:
 
 You also need to have a properly setup Visual Studio environment. The easiest way to do this is to use the Visual Studio command prompt (e.g. Start menu->All Programs->Visual C++ Studio Express Edition->Visual Studio Tools->Visual Studio 2005 Command Prompt). In the command prompt cd to the Slap directory and execute build.py.
 
-If all goes well, the build directory should now contain a fully formed Slap setup that you can run and copy to your USB stick.
+If all goes well, the build 'directory' should now contain a fully formed Slap setup that you can run and copy to your USB stick.
 
 Windows build notes
 ===================
