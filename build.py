@@ -10,9 +10,8 @@
 # building mpg123 and Windows extensions.
 # XXX This is a giant hack. No effort has been made to make it maintainable.
 # XXX maybe this can be more cleanly implemented as a setup.py script?
-# XXX currently no provisions for Windows build
 
-import errno, glob, os, os.path, platform, shutil, stat, subprocess, sys
+import errno, glob, optparse, os, os.path, platform, shutil, stat, subprocess, sys
 
 def dir_create(path):
     pass
@@ -42,6 +41,12 @@ def dir_delete(dir):
         os.rmdir(dir)
     except OSError, e:
         if e.errno != errno.ENOENT: raise
+
+def dir_copy_newer(src, dst):
+    if file_is_newer(src, dst):
+        shutil.copytree(src, dst)
+        return True
+    return False    
 
 def file_binary_find(name):
     path_var = 'PATH'
@@ -166,13 +171,21 @@ def cmd_build():
         if d[1] != '':
             dir_create(os.path.join(dir_base_dst, d[1]))
 
-    print 'Copying Python files'
+    print 'Copying source files'
     for d in dirs:
         if len(d[2]) == 0: continue
         for f in d[2]:
             filenames = glob.glob(os.path.join(dir_base_src, d[0], f))
             for filename in filenames:
-                file_copy_newer(filename, os.path.join(dir_base_dst, d[1], os.path.basename(filename))) 
+                print filename,
+                if os.path.isdir(filename):
+                    a = dir_copy_newer(filename, os.path.join(dir_base_dst, d[1], os.path.basename(filename)))
+                else:    
+                    a = file_copy_newer(filename, os.path.join(dir_base_dst, d[1], os.path.basename(filename)))
+                if a:
+                    print '\t\t(copied)'
+                else:
+                    print '\t\t(skipped)'
 
     if platform.system() == 'Windows':
         mpg123_filename_src = 'mpg123.exe'
@@ -217,8 +230,8 @@ def cmd_build():
 def cmd_clean():
     if platform.system() == 'Windows':
         env_msvc_test()
-    print 'Cleaning wselect workspace'
     if platform.system() == 'Windows':
+        print 'Cleaning wselect workspace'
         wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
         wselect_clean(wselect_dir)
         print 'Cleaning wcurses workspace'
@@ -235,31 +248,55 @@ def cmd_clean():
     for d in dirs:
         if d[1] != '':
             shutil.rmtree(os.path.join(dir_base_dst, d[1]), ignore_errors=True)
-    for f in os.listdir(dir_base_dst):
-        try: # try/except to skip CVS/.svn directories
-            os.unlink(os.path.join(dir_base_dst, f))
-        except:
-            pass
-    
+    if dir_base_dst != './': # XXX don't nuke a USB build (when invoked with --mpg123-only)       
+        for f in os.listdir(dir_base_dst):
+            try: # try/except to skip CVS/.svn directories
+                os.unlink(os.path.join(dir_base_dst, f))
+            except:
+                pass
+
 dir_base_src = './src'
 dir_base_dst = './build'
 
 # source, destination, files to copy
-dirs = (('slap', '', ('*.py',)),
+dirs = [('slap', '', ('*.py',)),
         ('mcurses', 'mcurses', ('*.py',)),
         ('mselect', 'mselect', ('*.py',)),
         ('mutagen', 'mutagen', ('*.py',)),
         ('', 'player', []),
         ('', 'media', []),
-       ) 
+       ] 
 
 
 cmds = {'build': cmd_build, 'clean': cmd_clean}
 
-if len(sys.argv) == 1:
+parser = optparse.OptionParser()
+parser.add_option('-t', '--target', dest='target', default='Release',
+                  help='Windows target (Release/Debug)')
+parser.add_option('-w', '--with-source', dest='with_source', action='store_true', default=False,
+                  help='Copy mpg123 source and build.py to build directory')
+parser.add_option('-m', '--mpg123-only', dest='mpg123_only', action='store_true', default=False,
+                  help='Apply only to mpg123 on USB (*nix only). USB image must have been created with --with-source flag')
+(options, args) = parser.parse_args()
+
+if options.mpg123_only and platform.system() == 'Windows':
+    raise Exception, 'mpg123 build on USB is not supported on Windows'
+
+if options.mpg123_only and options.with_source:
+    raise Exception, '--mpg123-only and --with-source are mutually exclusive options'
+
+if options.mpg123_only:
+    dir_base_dst = './'
+    dirs = []
+
+if options.with_source:
+    dirs.append(('..', '', ('build.py',)))
+    dirs.append(('', 'src', ('mpg123',)))
+
+if len(args) == 0:
     cmd_arg = 'build'
 else:    
-    cmd_arg = sys.argv[1]
+    cmd_arg = args[0]
     
 cmds[cmd_arg]()
 print '\nOK'
