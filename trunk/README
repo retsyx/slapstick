@@ -13,7 +13,7 @@ The build script will attempt to locate an existing mpg123 binary in your search
 Running Slap on multiple operating systems
 ==========================================
 
-As noted, Slap requires Python on the host system. It also requires an mpg123 binary on the USB stick. Slap is designed so that multiple binaries for different OSs can exist on the USB stick at once. Currently, build.py will place the binary generated for the OS it was run on. To support more systems, build Slap on the system you want support for and copy the generated mpg123 binary (placed in the 'player' directory) to the 'player' directory on your USB stick. At some point in the future build.py may be extended and also placed on the USB stick (along with mpg123 source) to allow you to build new binaries on any new system you encounter.
+As noted, Slap requires Python on the host system. It also requires an mpg123 binary on the USB stick. Slap is designed so that multiple binaries for different OSs can exist on the USB stick at once. Currently, build.py will place the binary generated for the OS it was run on. To support more systems, build Slap on the system you want support for and copy the generated mpg123 binary (placed in the 'player' directory) to the 'player' directory on your USB stick. 
 
 Building Slap on *nix
 =====================
@@ -45,6 +45,15 @@ Windows build notes
 mpg123 will compile with ~720 warnings on Windows - that's a lot of warnings. Fixing all these warnings would probably require extensive changes in the mpg123 code itself. I've tried to keep changes here to a minimum. 
 
 SWIG also appears to raise a couple warnings in its generated code.
+
+Building mpg123 on your stick
+=============================
+
+Slap is designed so that you can have multiple mpg123 binaries on your USB stick for different operating systems. Slap will select the correct binary at runtime. However, you only run on one OS at a time and it can be tedious to manually shuffle the Slap source code to build mpg123 on each system and place the player in the correct location on your USB stick.
+The Slap build allows you to compile mpg123 on any *nix machine (with a C tool chain, etc.) directly on your USB stick. First, when performing the initial build (either on Windows or *nix) specify the --with-source option. Build.py will copy the mpg123 source code and itself to the 'build' directory, which you then copy to your USB stick.
+To build mpg123 directly on your USB stick and have it ready for use, execute build.py with the --mpg123-only flag.
+
+Windows compilation is not supported because of the required dependencies (if you can resolve the dependencies, it's a small step to obtain the original Slap code again).
 
 Miscellaneous
 =============
