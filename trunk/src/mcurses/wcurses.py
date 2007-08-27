@@ -13,14 +13,34 @@ import sys
 import ascii
 import wcurses_c
 import msvcrt
+import winsound
 
 wc = wcurses_c
 
+COLS = 0
+LINES = 0
+
+COLORS = COLOR_PAIRS = 256
+_pairs = []
+
+COLOR_BLACK = 0x00
+COLOR_BLUE = 0x01
+COLOR_GREEN = 0x02
+COLOR_CYAN = 0x03
+COLOR_RED = 0x04
+COLOR_MAGENTA = 0x5
+COLOR_YELLOW = 0x06
+COLOR_WHITE = 0x07
+
 A_NORMAL = 0x07
 A_STANDOUT = 0x70
+A_BOLD = 0x08
+
 
 _KEY_SHIFT_1 = 0x80
 _KEY_SHIFT_2 = 0x100
+
+KEY_RESIZE = 0 # XXX no support for this
 
 KEY_BACKSPACE = 8
 KEY_F1 = 59 + _KEY_SHIFT_1
@@ -47,12 +67,17 @@ KEY_DC = 83 + _KEY_SHIFT_2
 KEY_F11 = 133 + _KEY_SHIFT_2
 KEY_F12 = 134 + _KEY_SHIFT_2
 
+ACS_LARROW = 0x2190
+ACS_RARROW = 0x2192
 ACS_HLINE = 0x2500 # ascii 196
 ACS_VLINE = 0x2502 # ascii 179 
 ACS_URCORNER = 0x2510 # ascii 191 
 ACS_LLCORNER = 0x2514 # ascii 192 
 ACS_LRCORNER = 0x2518 # ascii 217 
 ACS_ULCORNER = 0x250C # ascii 218 
+ACS_LTEE = 0x251D
+ACS_RTEE = 0x2525
+ACS_CKBOARD = 0x2591
 
 def _screen_size():
     xx = wc.new_intp()
@@ -65,10 +90,24 @@ def _screen_size():
     return x, y
     
 def initscr():
+    global COLS, LINES
     wc.init()
+    COLS, LINES = _screen_size()
     return newwin(0, 0)
-    
+
+def beep():
+    winsound.Beep(400, 100)
+
+def can_change_color():
+    return False
+
 def cbreak():
+    pass
+
+def color_pair(n):
+    return _pairs[n]
+
+def curs_set(v):
     pass
 
 def nocbreak():
@@ -80,31 +119,57 @@ def echo():
 def endwin():
     wc.echo()
     wc.deinit()
-    
+
+def has_colors():
+    return True
+
+def has_ic():
+    return True
+
+def init_pair(n, fg, bg):
+    _pairs[n] = fg|(bg<<4)
+
+def newpad(nlines, ncols):
+    return Window((0, 0, ncols, nlines), True)
+
 def newwin(nlines, ncols, y=None, x=None):
-    if (y and not x) or (not y and x):
+    if (y != None and x == None) or (y == None and x != None):
         raise Exception, 'Illegal parameter combination'
-    if not y:
+    if y == None:
         y, x = nlines, ncols
-        nline, ncols = None, None
-    if not x:
-        x, y = 0, 0
-    if not nlines:
+        nlines, ncols = None, None
+    if nlines == None:
         sx, sy = _screen_size()
         nlines, ncols = sy - y, sx - x
     return Window((x, y, x+ncols, y+nlines))
     
 def noecho():
     wc.noecho()
-    
-def start_color():
+
+def raw():
     pass
 
+def start_color():
+    global COLORS, COLOR_PAIRS, _pairs
+    COLORS = COLOR_PAIRS = 256
+    _pairs = [0] * COLORS
+    init_pair(0, COLOR_WHITE, COLOR_BLACK)
+    init_pair(1, COLOR_BLACK, COLOR_BLACK)
+    init_pair(2, COLOR_RED, COLOR_BLACK)
+    init_pair(3, COLOR_GREEN, COLOR_BLACK)
+    init_pair(4, COLOR_YELLOW, COLOR_BLACK)
+    init_pair(5, COLOR_BLUE, COLOR_BLACK)
+    init_pair(6, COLOR_MAGENTA, COLOR_BLACK)
+    init_pair(7, COLOR_CYAN, COLOR_BLACK)
+    init_pair(8, COLOR_WHITE, COLOR_BLACK)
+    
 class Window(object):
-    def __init__(self, rect):
+    def __init__(self, rect, pad=False):
         self.rect = rect # [x0, y0, x1, y1] in absolute screen coordinates
+        self.pad = pad
         self.xy = [0, 0]
         self.default_attr = A_NORMAL
+        self.default_char = ascii.SP
         self.dirty = []
         self.attrs = []
         self.buf = []
@@ -117,7 +182,7 @@ class Window(object):
         yy = self.rect[3] - self.rect[1]
         self.dirty = [1] * yy
         self.attrs = [[self.default_attr for xxx in xrange(xx)] for yyy in xrange(yy)]
-        self.buf = [[ascii.SP for xxx in xrange(xx)] for yyy in xrange(yy)]
+        self.buf = [[self.default_char for xxx in xrange(xx)] for yyy in xrange(yy)]
                 
     def _fit(self, length):
         x, y = self.xy
@@ -130,7 +195,7 @@ class Window(object):
             buf += [[] for yyy in xrange(y-len(buf)+1)]
         if x + length >= len(buf[y]):
             attrs[y] += [self.default_attr for xxx in xrange(x+length-len(attrs[y]))]
-            buf[y] += [ascii.SP for xxx in xrange(x+length-len(buf[y]))]
+            buf[y] += [self.default_char for xxx in xrange(x+length-len(buf[y]))]
     
     def _move_x(self, off):
         x, y = self.xy
@@ -194,6 +259,7 @@ class Window(object):
             attr = self.default_attr
         if x != None and y != None:
             self.move(y, x)
+        #print x, y, len(s), self.xy    
         self._fit(len(s))
         x, y = self.xy
         new_attr = [attr for ch in s]
@@ -205,17 +271,24 @@ class Window(object):
             self.buf[y][x:x+len(s)] = new_buf
             self.dirty[y] = 1
         self._move_x(len(s))
-                
+    def attrset(self, attr):
+        self.default_attr = attr
+    def bkgdset(self, ch, attr=None):
+        self.default_attr = attr
+        self.default_char = ch
+    def border(self, ls=0, rs=0, ts=0, bs=0, tl=0, tr=0, bl=0, br=0):
+        pass # XXX implement
+    def box(self, vertch=0, horch=0):
+        pass # XXX implement
     def clear(self):
         self._init_buf()
-
     def clrtoeol(self):
         x, y = self.xy
         buf = self.buf
         attrs = self.attrs
         if y >= len(buf): return
         if x >= len(buf[y]): return
-        new_buf = [ascii.SP for xxx in xrange(len(buf[y]) - x)]
+        new_buf = [self.default_char for xxx in xrange(len(buf[y]) - x)]
         if buf[y][x:] != new_buf:
             buf[y][x:] = new_buf
             self.dirty[y] = 1
@@ -223,8 +296,6 @@ class Window(object):
         if attrs[y][x:] != new_attrs:
             attrs[y][x:] = new_attrs
             self.dirty[y] = 1
-            
-    
     def delch(self, y=None, x=None):
         if x != None and y != None:
             self.move(y, x)
@@ -234,14 +305,12 @@ class Window(object):
         if x >= len(buf[y]): return
         self.dirty[y] = 1
         del buf[y][x]
-        
     def deleteln(self):
         y = self.xy[1]
         if y >= len(self.buf): return
         del self.dirty[y]
         del self.attr[y]
         del self.buf[y]
-        
     def derwin(self, nlines, ncols, y=None, x=None):
         if y == None:
             y, x = nlines, ncols
@@ -258,22 +327,17 @@ class Window(object):
         if sy >= self.rect[3]:
             sy = self.rect[3] - 1   
         return Window((x, y, sx, sy))
+    def erase(self):
+        self._init_buf()
     def getch(self, y=None, x=None):
         if x and y:
             self.move(x, y)
-        #return wc.getch()
         ch = ord(msvcrt.getch())
         if ch == 0x00:
             ch = _KEY_SHIFT_1 + ord(msvcrt.getch())
         elif ch == 0xE0:
             ch = _KEY_SHIFT_2 + ord(msvcrt.getch())
         return ch
-    def getch_stdin(self, y=None, x=None):
-        if x != None and y != None:
-            self.move(x, y)
-        bla = sys.stdin.read(1) # XXX No special key mapping
-        #print ord(bla) 
-        return bla
     def getmaxyx(self):
         return self.rect[3] - self.rect[1], self.rect[2] - self.rect[0]
     def getyx(self):
@@ -314,7 +378,7 @@ class Window(object):
         for yy in xrange(y, len(self.dirty)):
             self.dirty[yy] = 1
         self.attr.insert(y, [self.default_attr for xx in xrange(self.rect[2] - self.rect[0])])
-        self.buf.insert(y, [ascii.SPs for xx in xrange(self.rect[2] - self.rect[0])])
+        self.buf.insert(y, [self.default_char for xx in xrange(self.rect[2] - self.rect[0])])
     def keypad(self, yes):
         pass
     def move(self, y, x):
@@ -335,7 +399,14 @@ class Window(object):
         for i in xrange(len(lst)):
             wc.short_array_setitem(a, i, int(lst[i]))
             
-    def refresh(self):
+    def refresh(self, pminrow=None, pmincol=None, sminrow=None, smincol=None, smaxrow=None, smaxcol=None):
+        t = (pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol)
+        if None in t:
+            if len([tt for tt in t if tt != None]): raise Exception, 'Must specify all parameters or none'
+        if self.pad and None in t:
+            raise Exception, 'Must specify parameters for pad'
+        # XXX handle pad drawing
+        
         x = self.rect[0]
         sx = self.rect[2] - x
         a = wc.new_short_array(sx)
@@ -349,24 +420,6 @@ class Window(object):
                 wc.write_row_chars(x, y, len(lnsx), a)
                 self.dirty[y-self.rect[1]] = 0
         wc.delete_short_array(a)        
-        # restore cursor
-        wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
-            
-    def refresh1(self):
-        y = self.rect[1]
-        ey = self.rect[3]
-        x = self.rect[0]
-        sx = self.rect[2] - x
-        for ln in self.buf:
-            if self.dirty[y]:
-                wc.move(x, y)
-                #print ln[:sx]
-                print ''.join([chr(ch) for ch in ln[:sx]]),
-                #ll = len(ln[:sx])
-                #if ll < sx: print chr(ascii.SP) * (sx - ll - 1),
-                y += 1
-                if y >= ey: break
-                self.dirty[y] = 0
         # restore cursor
         wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
             
@@ -401,6 +454,8 @@ class Window(object):
                 self.dirty[yy] = 1
         self._move_x(1)
 
+class error:
+    pass
 
 def rectangle(win, uly, ulx, lry, lrx):
     """Draw a rectangle with corners at the provided upper-left
