@@ -11,15 +11,12 @@
 import sys
 
 import ascii
-import wcurses_c
+import wcurses_c as wc
 import msvcrt
 import winsound
 
-wc = wcurses_c
-
-COLS = 0
-LINES = 0
-
+#COLS = 0
+#LINES = 0
 COLORS = COLOR_PAIRS = 256
 _pairs = []
 
@@ -88,13 +85,13 @@ def _screen_size():
     wc.delete_intp(xx)
     wc.delete_intp(yy)
     return x, y
-    
-def initscr():
-    global COLS, LINES
-    wc.init()
-    COLS, LINES = _screen_size()
-    return newwin(0, 0)
 
+def get_cols():
+    return _screen_size()[0]
+
+def get_lines():
+    return _screen_size()[1]
+    
 def beep():
     winsound.Beep(400, 100)
 
@@ -129,6 +126,12 @@ def has_ic():
 def init_pair(n, fg, bg):
     _pairs[n] = fg|(bg<<4)
 
+def initscr():
+    #global COLS, LINES
+    wc.init()
+    #COLS, LINES = _screen_size()
+    return newwin(0, 0)
+
 def newpad(nlines, ncols):
     return Window((0, 0, ncols, nlines), True)
 
@@ -141,6 +144,7 @@ def newwin(nlines, ncols, y=None, x=None):
     if nlines == None:
         sx, sy = _screen_size()
         nlines, ncols = sy - y, sx - x
+    if nlines < 0 or ncols < 0: raise Exception, 'Illegal parameters'
     return Window((x, y, x+ncols, y+nlines))
     
 def noecho():
@@ -186,15 +190,16 @@ class Window(object):
                 
     def _fit(self, length):
         x, y = self.xy
+        sx = self.rect[2] - self.rect[0]
         dirty = self.dirty
         attrs = self.attrs
         buf = self.buf
         if y >= len(buf):
             dirty += [1] * (y-len(dirty)+1)
-            attrs += [[] for yyy in xrange(y-len(attrs)+1)]
-            buf += [[] for yyy in xrange(y-len(buf)+1)]
+            attrs += [[self.default_attr] * sx for yyy in xrange(y-len(attrs)+1)]
+            buf += [[self.default_char] * sx for yyy in xrange(y-len(buf)+1)]
         if x + length >= len(buf[y]):
-            attrs[y] += [self.default_attr for xxx in xrange(x+length-len(attrs[y]))]
+            attrs[y] += [self.default_attr for xxx in xrange(x+length-len(attrs[y]))] 
             buf[y] += [self.default_char for xxx in xrange(x+length-len(buf[y]))]
     
     def _move_x(self, off):
@@ -259,7 +264,6 @@ class Window(object):
             attr = self.default_attr
         if x != None and y != None:
             self.move(y, x)
-        #print x, y, len(s), self.xy    
         self._fit(len(s))
         x, y = self.xy
         new_attr = [attr for ch in s]
@@ -272,14 +276,39 @@ class Window(object):
             self.dirty[y] = 1
         self._move_x(len(s))
     def attrset(self, attr):
+        if not attr:
+            attr = A_NORMAL
         self.default_attr = attr
     def bkgdset(self, ch, attr=None):
-        self.default_attr = attr
+        self.attrset(attr)
+        if not ch:
+            ch = ascii.SP
         self.default_char = ch
     def border(self, ls=0, rs=0, ts=0, bs=0, tl=0, tr=0, bl=0, br=0):
-        pass # XXX implement
+        if not ls: ls = ACS_VLINE
+        if not rs: rs = ACS_VLINE
+        if not ts: ts = ACS_HLINE
+        if not bs: bs = ACS_HLINE
+        if not tl: tl = ACS_ULCORNER
+        if not tr: tr = ACS_URCORNER
+        if not bl: bl = ACS_LLCORNER
+        if not br: br = ACS_LRCORNER
+        x, y = self.xy
+        uly = 0
+        ulx = 0
+        lry = self.rect[3] - self.rect[1]
+        lrx = self.rect[2] - self.rect[0]
+        self.vline(uly+1, ulx, ACS_VLINE, lry - uly - 1)
+        self.hline(uly, ulx+1, ACS_HLINE, lrx - ulx - 1)
+        self.hline(lry, ulx+1, ACS_HLINE, lrx - ulx - 1)
+        self.vline(uly+1, lrx, ACS_VLINE, lry - uly - 1)
+        self.addch(uly, ulx, tl)
+        self.addch(uly, lrx, tr)
+        self.addch(lry, lrx, br)
+        self.addch(lry, ulx, bl)
+        self.move(x, y) # restore cursor
     def box(self, vertch=0, horch=0):
-        pass # XXX implement
+        self.border(ls=vertch, rs=vertch, ts=horch, bs=horch)
     def clear(self):
         self._init_buf()
     def clrtoeol(self):
@@ -480,6 +509,8 @@ def test():
     win.addch(7, 4, 'K')
     win.refresh()
     endwin()
-    
+
+   
+
 if __name__ == '__main__':
     test()
