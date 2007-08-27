@@ -12,20 +12,41 @@ import sys
 
 import ascii
 import wcurses_c
+import msvcrt
 
 wc = wcurses_c
 
 A_NORMAL = 0x07
 A_STANDOUT = 0x70
 
-KEY_LEFT = 293 # XXX don't know
-KEY_RIGHT = 295 # XXX don't know
-KEY_UP = 294 # XXX don't know
-KEY_DOWN = 296 # XXX don't know
-KEY_PPAGE = 289 # don't know
-KEY_NPAGE = 290 # don't know
+_KEY_SHIFT_1 = 0x80
+_KEY_SHIFT_2 = 0x100
 
 KEY_BACKSPACE = 8
+KEY_F1 = 59 + _KEY_SHIFT_1
+KEY_F2 = 60 + _KEY_SHIFT_1
+KEY_F3 = 61 + _KEY_SHIFT_1
+KEY_F4 = 62 + _KEY_SHIFT_1
+KEY_F5 = 63 + _KEY_SHIFT_1
+KEY_F6 = 64 + _KEY_SHIFT_1
+KEY_F7 = 65 + _KEY_SHIFT_1
+KEY_F8 = 66 + _KEY_SHIFT_1
+KEY_F9 = 67 + _KEY_SHIFT_1
+KEY_F10 = 68 + _KEY_SHIFT_1
+
+KEY_HOME = 71 + _KEY_SHIFT_2
+KEY_UP = 72 + _KEY_SHIFT_2    
+KEY_PPAGE = 73 + _KEY_SHIFT_2 
+KEY_LEFT = 75 + _KEY_SHIFT_2  
+KEY_RIGHT = 77 + _KEY_SHIFT_2 
+KEY_END = 79 + _KEY_SHIFT_2
+KEY_DOWN = 80 + _KEY_SHIFT_2  
+KEY_NPAGE = 81 + _KEY_SHIFT_2 
+KEY_IC = 82 + _KEY_SHIFT_2
+KEY_DC = 83 + _KEY_SHIFT_2
+KEY_F11 = 133 + _KEY_SHIFT_2
+KEY_F12 = 134 + _KEY_SHIFT_2
+
 ACS_HLINE = 0x2500 # ascii 196
 ACS_VLINE = 0x2502 # ascii 179 
 ACS_URCORNER = 0x2510 # ascii 191 
@@ -237,11 +258,16 @@ class Window(object):
         if sy >= self.rect[3]:
             sy = self.rect[3] - 1   
         return Window((x, y, sx, sy))
-    # Should consider using msvcrt.getch() instead
     def getch(self, y=None, x=None):
         if x and y:
             self.move(x, y)
-        return wc.getch()
+        #return wc.getch()
+        ch = ord(msvcrt.getch())
+        if ch == 0x00:
+            ch = _KEY_SHIFT_1 + ord(msvcrt.getch())
+        elif ch == 0xE0:
+            ch = _KEY_SHIFT_2 + ord(msvcrt.getch())
+        return ch
     def getch_stdin(self, y=None, x=None):
         if x != None and y != None:
             self.move(x, y)
