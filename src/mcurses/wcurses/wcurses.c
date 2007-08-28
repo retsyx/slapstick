@@ -3,7 +3,6 @@
 #include "wcurses.h"
 
 static int wcurses_grok_extent(wcurses_t *wc);
-static int wcurses_getxy_raw(wcurses_t *wc, COORD *xy);
 static int wcurses_move_raw(wcurses_t *wc, COORD *xy);
 
 int
@@ -85,101 +84,6 @@ wcurses_move_raw(wcurses_t *wc, COORD *xy)
 }
 
 int
-wcurses_getxy(wcurses_t *wc, COORD *xy)
-{
- wcurses_getxy_raw(wc, xy);
- xy->X -= wc->extent.Left;
- xy->Y -= wc->extent.Top;
-	
- return 0;
-}
-
-int
-wcurses_getxy_raw(wcurses_t *wc, COORD *xy)
-{
-	CONSOLE_SCREEN_BUFFER_INFO ci;
-	
-	GetConsoleScreenBufferInfo(wc->std_o, &ci);
-	
-	*xy = ci.dwCursorPosition;
-	
-	return 0;
-}
-
-int
-wcurses_clear_region(wcurses_t *wc, SMALL_RECT *region0)
-{
- SMALL_RECT region;
- COORD xy;
- int y;
- char buf[512];
- 
- region = *region0;
- 
- region.Top += wc->extent.Top;
- region.Bottom += wc->extent.Top;
- region.Left += wc->extent.Left;
- region.Right += wc->extent.Left;
- 
- if (region.Bottom < wc->extent.Top  ||
-	 region.Bottom >= wc->extent.Bottom  ||
-	 region.Top < wc->extent.Top  ||
-	 region.Top >= wc->extent.Bottom  ||
-	 region.Left < wc->extent.Left  ||
-	 region.Left >= wc->extent.Right  ||
-	 region.Right < wc->extent.Left  ||
-	 region.Right >= wc->extent.Right) return -1;
-
- memset(buf, ' ', sizeof(buf));
- buf[region.Right - region.Left] = 0;
- xy.X = region.Left;
- for (y = region.Top; y < region.Bottom; y++)
-   {
-    xy.Y = y;
-    wcurses_move_raw(wc, &xy);
-    printf(buf);
-   }
-   
- return 0;
-}
-
-int
-wcurses_print(wcurses_t *wc, char *str)
-{
- COORD xy;
- int len;
- DWORD bla;
- 
- wcurses_getxy_raw(wc, &xy);
- 
- len = wc->extent.Right - xy.X;
- 
- WriteConsole(wc->std_o, str, len, &bla, NULL);
- 
- return 0;
-}
-
-int
-wcurses_get_attr(wcurses_t *wc, int *attr)
-{
- CONSOLE_SCREEN_BUFFER_INFO ci;
- 
- GetConsoleScreenBufferInfo(wc->std_o, &ci);
- 
- *attr = ci.wAttributes;
- 
- return 0;
-}
-
-int 
-wcurses_set_attr(wcurses_t *wc, int attr)
-{
- SetConsoleTextAttribute(wc->std_o, attr);
- 
- return 0;
-}
-
-int
 wcurses_getch(wcurses_t *wc, COORD *xy, int *ch)
 {
  //char buf[1];
@@ -191,19 +95,16 @@ wcurses_getch(wcurses_t *wc, COORD *xy, int *ch)
    wcurses_move(wc, xy);
   }
 
- // ReadConsole doesn't provide enough control
- //ReadConsole(wc->std_i, buf, 1, &nof_read, NULL); 
- //*ch = buf[0];
-
  do {
 	 do { 
 		 ReadConsoleInput(wc->std_i, &rec, 1, &nof_read);
 		} while (rec.EventType != KEY_EVENT); /* XXX ignore everything but key events for now */
 	} while (!rec.Event.KeyEvent.bKeyDown  ||  (!rec.Event.KeyEvent.uChar.AsciiChar  &&
-	         (rec.Event.KeyEvent.wVirtualKeyCode != VK_UP  &&  rec.Event.KeyEvent.wVirtualKeyCode != VK_DOWN  &&
-	          rec.Event.KeyEvent.wVirtualKeyCode != VK_LEFT  &&  rec.Event.KeyEvent.wVirtualKeyCode != VK_RIGHT  &&
-	          rec.Event.KeyEvent.wVirtualKeyCode != VK_PRIOR  &&  rec.Event.KeyEvent.wVirtualKeyCode != VK_NEXT)));
-	
+	         (rec.Event.KeyEvent.wVirtualKeyCode == VK_SHIFT  ||
+	          rec.Event.KeyEvent.wVirtualKeyCode == VK_CONTROL  ||
+	          rec.Event.KeyEvent.wVirtualKeyCode == VK_NUMLOCK  ||
+	          rec.Event.KeyEvent.wVirtualKeyCode == VK_SCROLL)));
+	          
  *ch = rec.Event.KeyEvent.uChar.AsciiChar;
  
  /* If special key, ascii will be 0
