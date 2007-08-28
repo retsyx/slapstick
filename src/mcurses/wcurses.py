@@ -115,6 +115,7 @@ def echo():
     wc.echo()
     
 def endwin():
+    
     wc.echo()
     wc.deinit()
 
@@ -128,10 +129,10 @@ def init_pair(n, fg, bg):
     _pairs[n] = fg|(bg<<4)
 
 def initscr():
-    #global COLS, LINES
     wc.init()
-    #COLS, LINES = _screen_size()
-    return newwin(0, 0)
+    win = newwin(0, 0)
+    win.refresh() # clear the screen
+    return win
 
 def newpad(nlines, ncols):
     return Window((0, 0, ncols, nlines), True)
