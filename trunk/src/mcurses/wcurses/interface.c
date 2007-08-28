@@ -38,22 +38,6 @@ move(int x, int y)
 }
 
 int
-get_attr(void)
-{
- int attr;
- 
- wcurses_get_attr(&g_wc, &attr);
- 
- return attr;
-}
- 
-int 
-set_attr(int attr)
-{
- return wcurses_set_attr(&g_wc, attr); 
-}
-
-int
 get_screen_size(int *x, int *y)
 {
  int ret;
