@@ -8,12 +8,10 @@
 #
 # wcurses - minimal (e.g. woefully incomplete) curses display emulation on Windows
 #
-import sys
+import msvcrt, sys, time, winsound
 
 import ascii
 import wcurses_c as wc
-import msvcrt
-import winsound
 
 #COLS = 0
 #LINES = 0
@@ -107,6 +105,9 @@ def color_pair(n):
 def curs_set(v):
     pass
 
+def napms(ms):
+    time.sleep(ms/1000.0)
+    
 def nocbreak():
     pass
     
@@ -150,6 +151,9 @@ def newwin(nlines, ncols, y=None, x=None):
 def noecho():
     wc.noecho()
 
+def nl():
+    pass
+
 def raw():
     pass
 
@@ -171,6 +175,7 @@ class Window(object):
     def __init__(self, rect, pad=False):
         self.rect = rect # [x0, y0, x1, y1] in absolute screen coordinates
         self.pad = pad
+        self.delay = -1
         self.xy = [0, 0]
         self.default_attr = A_NORMAL
         self.default_char = ascii.SP
@@ -185,8 +190,8 @@ class Window(object):
         xx = self.rect[2] - self.rect[0]
         yy = self.rect[3] - self.rect[1]
         self.dirty = [1] * yy
-        self.attrs = [[self.default_attr for xxx in xrange(xx)] for yyy in xrange(yy)]
-        self.buf = [[self.default_char for xxx in xrange(xx)] for yyy in xrange(yy)]
+        self.attrs = [[self.default_attr] * xx for yyy in xrange(yy)]
+        self.buf = [[self.default_char] * xx for yyy in xrange(yy)]
                 
     def _fit(self, length):
         x, y = self.xy
@@ -199,8 +204,8 @@ class Window(object):
             attrs += [[self.default_attr] * sx for yyy in xrange(y-len(attrs)+1)]
             buf += [[self.default_char] * sx for yyy in xrange(y-len(buf)+1)]
         if x + length >= len(buf[y]):
-            attrs[y] += [self.default_attr for xxx in xrange(x+length-len(attrs[y]))] 
-            buf[y] += [self.default_char for xxx in xrange(x+length-len(buf[y]))]
+            attrs[y] += [self.default_attr] * (x+length-len(attrs[y])) 
+            buf[y] += [self.default_char] * (x+length-len(buf[y]))
     
     def _move_x(self, off):
         x, y = self.xy
@@ -280,10 +285,12 @@ class Window(object):
             attr = A_NORMAL
         self.default_attr = attr
     def bkgdset(self, ch, attr=None):
+        if not attr:
+            attr = ch
+            ch = None
         self.attrset(attr)
-        if not ch:
-            ch = ascii.SP
-        self.default_char = ch
+        if ch:
+            self.default_char = ch
     def border(self, ls=0, rs=0, ts=0, bs=0, tl=0, tr=0, bl=0, br=0):
         if not ls: ls = ACS_VLINE
         if not rs: rs = ACS_VLINE
@@ -317,11 +324,11 @@ class Window(object):
         attrs = self.attrs
         if y >= len(buf): return
         if x >= len(buf[y]): return
-        new_buf = [self.default_char for xxx in xrange(len(buf[y]) - x)]
+        new_buf = [self.default_char] * (len(buf[y]) - x)
         if buf[y][x:] != new_buf:
             buf[y][x:] = new_buf
             self.dirty[y] = 1
-        new_attrs = [self.default_attr for xxx in xrange(len(attrs[y]) - x)]
+        new_attrs = [self.default_attr] * (len(attrs[y]) - x)
         if attrs[y][x:] != new_attrs:
             attrs[y][x:] = new_attrs
             self.dirty[y] = 1
@@ -358,15 +365,29 @@ class Window(object):
         return Window((x, y, sx, sy))
     def erase(self):
         self._init_buf()
-    def getch(self, y=None, x=None):
-        if x and y:
-            self.move(x, y)
+    def getbegyx(self):
+        return self.rect[1], self.rect[0]
+    def _getch(self):
         ch = ord(msvcrt.getch())
         if ch == 0x00:
             ch = _KEY_SHIFT_1 + ord(msvcrt.getch())
         elif ch == 0xE0:
             ch = _KEY_SHIFT_2 + ord(msvcrt.getch())
         return ch
+    def getch(self, y=None, x=None):
+        if x and y:
+            self.move(x, y)
+        delay = self.delay
+        if delay < 0: return self._getch()
+        while delay > 0:
+            if msvcrt.kbhit(): return self._getch()
+            if delay >= 100:
+                st = 0.1
+            else:
+                st = delay/1000.0
+            time.sleep(st)
+            delay -= 100
+        return -1
     def getmaxyx(self):
         return self.rect[3] - self.rect[1], self.rect[2] - self.rect[0]
     def getyx(self):
@@ -388,10 +409,15 @@ class Window(object):
         self._fit(n)
         x, y = self.xy
         buf = self.buf
-        new_buf = [ch for xxx in xrange(n)]
+        attrs = self.attrs
+        new_buf = [ch] * n
         if new_buf != buf[y][x:x+n]:
             self.dirty[y] = 1
             buf[y][x:x+n] = new_buf
+        new_attr = [self.default_attr] * n
+        if new_attr != attrs[y][x:x+n]:
+            self.dirty[y] = 1
+            attrs[y][x:x+n] = new_attr
         self._move_x(n) 
     def inch(self, y=None, x=None):
         if x and y:
@@ -423,7 +449,11 @@ class Window(object):
             y = sy - 1
         self.xy = [x, y]
         wc.move(x + self.rect[0], y + self.rect[1])
-
+    def nodelay(self, yes):
+        if yes:
+            self.delay = -1 # blocking
+        else:
+            self.delay = 0 # non-blocking
     def _ptr_array_build(self, a, lst):
         for i in xrange(len(lst)):
             wc.short_array_setitem(a, i, int(lst[i]))
@@ -435,19 +465,33 @@ class Window(object):
         if self.pad and None in t:
             raise Exception, 'Must specify parameters for pad'
         # XXX handle pad drawing
-        
-        x = self.rect[0]
-        sx = self.rect[2] - x
+        if pminrow < 0: pminrow = 0
+        if pmincol < 0: pmincol = 0
+        if sminrow < 0: sminrow = 0
+        if smincol < 0: smincol = 0
+        if self.pad:
+            buf_bx, buf_by = pmincol, pminrow
+            scr_bx, scr_by = smincol, sminrow
+            scr_ex, scr_ey = smaxcol, smaxrow
+            # ugh, fudge to match what curses seems to accept
+            scr_ey += 1
+            if scr_ey - scr_by > len(self.buf): scr_ey = len(self.buf) + scr_by
+            scr_ex += 1
+        else:
+            buf_bx, buf_by = 0, 0
+            scr_bx, scr_by, scr_ex, scr_ey = self.rect
+        x = scr_bx
+        sx = scr_ex - x
         a = wc.new_short_array(sx)
-        for y in xrange(self.rect[1], self.rect[3]):
-            if self.dirty[y-self.rect[1]]:
-                lnsx = self.attrs[y-self.rect[1]][:sx]
+        for y in xrange(scr_by, scr_ey):
+            if self.dirty[y-scr_by+buf_by]:
+                lnsx = self.attrs[y-scr_by+buf_by][buf_bx:buf_bx+sx]
                 self._ptr_array_build(a, lnsx)
                 wc.write_row_attrs(x, y, len(lnsx), a)
-                lnsx = self.buf[y-self.rect[1]][:sx]
+                lnsx = self.buf[y-scr_by+buf_by][buf_bx:buf_bx+sx]
                 self._ptr_array_build(a, lnsx)
                 wc.write_row_chars(x, y, len(lnsx), a)
-                self.dirty[y-self.rect[1]] = 0
+                self.dirty[y-scr_by+buf_by] = 0
         wc.delete_short_array(a)        
         # restore cursor
         wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
@@ -459,6 +503,8 @@ class Window(object):
             print ''.join([chr(ch) for ch in ln])
             #print '\n'
             i += 1
+    def timeout(self, delay):
+        self.delay = delay
     def vline(self, y, x, ch=None, n=None):     
         # emulate silly parameter combinations
         # ch, n         2
@@ -475,11 +521,15 @@ class Window(object):
             self.move(y, x)
         x, y = self.xy
         buf = self.buf
+        attrs = self.attrs
         for yy in xrange(y, y+n):
             self.move(y, x)
             self._fit(1)
             if buf[yy][x] != ch:
                 buf[yy][x] = ch
+                self.dirty[yy] = 1
+            if attrs[yy][x] != self.default_attr:
+                attrs[yy][x] = self.default_attr
                 self.dirty[yy] = 1
         self._move_x(1)
 
