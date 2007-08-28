@@ -103,7 +103,8 @@ wcurses_getch(wcurses_t *wc, COORD *xy, int *ch)
 	         (rec.Event.KeyEvent.wVirtualKeyCode == VK_SHIFT  ||
 	          rec.Event.KeyEvent.wVirtualKeyCode == VK_CONTROL  ||
 	          rec.Event.KeyEvent.wVirtualKeyCode == VK_NUMLOCK  ||
-	          rec.Event.KeyEvent.wVirtualKeyCode == VK_SCROLL)));
+	          rec.Event.KeyEvent.wVirtualKeyCode == VK_SCROLL  ||
+	          rec.Event.KeyEvent.wVirtualKeyCode == VK_MENU)));
 	          
  *ch = rec.Event.KeyEvent.uChar.AsciiChar;
  
@@ -120,9 +121,9 @@ wcurses_getch(wcurses_t *wc, COORD *xy, int *ch)
 	if (rec.Event.KeyEvent.dwControlKeyState & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED))
 	 {
 		if (isalpha(*ch))
-     {
-		*ch -= 'a' + 1;
-     }
+         {
+		    *ch -= 'a' + 1;
+         }
 	} else if (rec.Event.KeyEvent.dwControlKeyState & CAPSLOCK_ON)
 	{
 		if (!rec.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
