@@ -215,8 +215,8 @@ class Window(object):
             for y in xrange(ly):
                 if not child.dirty[y]: continue
                 self.dirty[y+ry] = 1
-                self.buf[y+ry][rx:rx+lx] = child.buf[y+ry][rx:rx+lx]
-                self.attrs[y+ry][rx:rx+lx] = child.attrs[y+ry][rx:rx+lx]
+                self.buf[y+ry][rx:rx+lx] = child.buf[y][:]
+                self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:]
     def _init_buf(self):
         # Initialize to rect to ensure drawing doesn't
         # need any fancy logic 
