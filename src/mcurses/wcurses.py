@@ -135,7 +135,7 @@ def initscr():
     return win
 
 def newpad(nlines, ncols):
-    return Window((0, 0, ncols, nlines), True)
+    return Window((0, 0, ncols, nlines), pad=True, parent=None)
 
 def newwin(nlines, ncols, y=None, x=None):
     if (y != None and x == None) or (y == None and x != None):
@@ -147,7 +147,7 @@ def newwin(nlines, ncols, y=None, x=None):
         sx, sy = _screen_size()
         nlines, ncols = sy - y, sx - x
     if nlines < 0 or ncols < 0: raise Exception, 'Illegal parameters'
-    return Window((x, y, x+ncols, y+nlines))
+    return Window((x, y, x+ncols, y+nlines), pad=False, parent=None)
     
 def noecho():
     wc.noecho()
@@ -173,7 +173,9 @@ def start_color():
     init_pair(8, COLOR_WHITE, COLOR_BLACK)
     
 class Window(object):
-    def __init__(self, rect, pad=False):
+    def __init__(self, rect, pad=False, parent=None):
+        self.parent = parent
+        self.children = []
         self.rect = rect # [x0, y0, x1, y1] in absolute screen coordinates
         self.pad = pad
         self.delay = -1
@@ -191,14 +193,6 @@ class Window(object):
             attr &= 0xFF
             attr = ((attr&0xf0)>>8) | ((attr&0x0f)<<8)
         return attr    
-    def _init_buf(self):
-        # Initialize to rect to ensure drawing doesn't
-        # need any fancy logic 
-        xx = self.rect[2] - self.rect[0]
-        yy = self.rect[3] - self.rect[1]
-        self.dirty = [1] * yy
-        self.attrs = [[self.default_attr] * xx for yyy in xrange(yy)]
-        self.buf = [[self.default_char] * xx for yyy in xrange(yy)]
     def _fit(self, length):
         x, y = self.xy
         sx = self.rect[2] - self.rect[0]
@@ -212,6 +206,31 @@ class Window(object):
         if x + length >= len(buf[y]):
             attrs[y] += [self.default_attr] * (x+length-len(attrs[y])) 
             buf[y] += [self.default_char] * (x+length-len(buf[y]))
+    def _flatten_children(self):
+        sbx, sby = self.rect[:2]
+        for child in self.children:
+            bx, ex = child.rect[0:4:2]
+            by, ey = child.rect[1:4:2]
+            rx, ry = bx - sbx, by - sby
+            if bx < self.rect[0]: bx = self.rect[0]
+            if by < self.rect[1]: by = self.rect[1]
+            if ex > self.rect[2]: ex = self.rect[2]
+            if ey > self.rect[3]: ey = self.rect[3]
+            bx -= sbx
+            ex -= sbx
+            for y in xrange(by, ey):
+                if not child.dirty[y-ry-sby]: continue
+                self.dirty[y-sby] = 1
+                self.buf[y-sby][bx:ex] = child.buf[y-sby-ry][bx-rx:ex-rx]
+                self.attrs[y-sby][bx:ex] = child.attrs[y-sby-ry][bx-rx:ex-rx]
+    def _init_buf(self):
+        # Initialize to rect to ensure drawing doesn't
+        # need any fancy logic 
+        xx = self.rect[2] - self.rect[0]
+        yy = self.rect[3] - self.rect[1]
+        self.dirty = [1] * yy
+        self.attrs = [[self.default_attr] * xx for yyy in xrange(yy)]
+        self.buf = [[self.default_char] * xx for yyy in xrange(yy)]
     def _move_x(self, off):
         x, y = self.xy
         x += off
@@ -224,7 +243,6 @@ class Window(object):
                 x = 0
         self.xy = [x, y]
         wc.move(x + self.rect[0], y + self.rect[1])
-                
     def addch(self, y, x=None, ch=None, attr=None):
         # emulate silly parameter combinations
         # ch             3
@@ -453,7 +471,6 @@ class Window(object):
     def _ptr_array_build(self, a, lst):
         for i in xrange(len(lst)):
             wc.short_array_setitem(a, i, int(lst[i]))
-            
     def refresh(self, pminrow=None, pmincol=None, sminrow=None, smincol=None, smaxrow=None, smaxcol=None):
         t = (pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol)
         if None in t:
@@ -511,12 +528,21 @@ class Window(object):
         if sx >= self.rect[2]:
             sx = self.rect[2] - 1
         if sy >= self.rect[3]:
-            sy = self.rect[3] - 1   
-        return Window((x, y, sx, sy))
+            sy = self.rect[3] - 1
+        win = Window((x, y, sx, sy), pad=False, parent=self)
+        self.children.append(win)
+        return win
     def timeout(self, delay):
         self.delay = delay
+    def touchline(self, start, count, changed=1):
+        if start > len(self.dirty): return
+        if start + count > len(self.dirty):
+            count = len(self.dirty) - start
+        self.dirty[start:start+count] = [changed] * count    
     def touchwin(self):
         self.dirty = [1] * len(self.dirty)
+    def untouchwin(self):
+        self.dirty = [0] * len(self.dirty)
     def vline(self, y, x, ch=None, n=None):     
         # emulate silly parameter combinations
         # ch, n         2
