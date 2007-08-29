@@ -380,7 +380,7 @@ class Window(object):
             self.move(x, y)
         delay = self.delay
         if delay < 0: return self._getch()
-        while delay > 0:
+        while delay >= 0:
             if msvcrt.kbhit(): return self._getch()
             if delay >= 100:
                 st = 0.1
