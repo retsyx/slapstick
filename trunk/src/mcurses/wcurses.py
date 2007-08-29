@@ -209,20 +209,14 @@ class Window(object):
     def _flatten_children(self):
         sbx, sby = self.rect[:2]
         for child in self.children:
-            bx, ex = child.rect[0:4:2]
-            by, ey = child.rect[1:4:2]
-            rx, ry = bx - sbx, by - sby
-            if bx < self.rect[0]: bx = self.rect[0]
-            if by < self.rect[1]: by = self.rect[1]
-            if ex > self.rect[2]: ex = self.rect[2]
-            if ey > self.rect[3]: ey = self.rect[3]
-            bx -= sbx
-            ex -= sbx
-            for y in xrange(by, ey):
-                if not child.dirty[y-ry-sby]: continue
-                self.dirty[y-sby] = 1
-                self.buf[y-sby][bx:ex] = child.buf[y-sby-ry][bx-rx:ex-rx]
-                self.attrs[y-sby][bx:ex] = child.attrs[y-sby-ry][bx-rx:ex-rx]
+            cbx, cby, cex, cey = child.rect
+            rx, ry = cbx - sbx, cby - sby
+            lx, ly = cex - cbx, cey - cby
+            for y in xrange(ly):
+                if not child.dirty[y]: continue
+                self.dirty[y+ry] = 1
+                self.buf[y+ry][rx:rx+lx] = child.buf[y+ry][rx:rx+lx]
+                self.attrs[y+ry][rx:rx+lx] = child.attrs[y+ry][rx:rx+lx]
     def _init_buf(self):
         # Initialize to rect to ensure drawing doesn't
         # need any fancy logic 
