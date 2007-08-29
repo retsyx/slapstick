@@ -1,0 +1,38 @@
+#labels Featured,Phase-Implementation
+Curses for Windows
+
+= Introduction =
+
+The Python distribution does not support curses on Windows because there is no native curses library for Windows. To allow Slap to run with a curses interface on Windows, wcurses/mcurses was written.
+
+= Details =
+
+== mcurses ==
+
+mcurses is a small wrapper that decides at runtime which curses library to import based on the running OS. If on Windows, mcurses will import wcurses, otherwise, it will import the Python distribution curses.
+
+As such mcurses is a drop in replacement for the curses library. To use in your Python code, you would need to modify
+
+`import curses`
+
+to
+
+`import mcurses as curses`
+
+
+== wcurses ==
+
+wcurses is a partial implementation of the curses library for Windows. It is currently complete enough to run the Python demo scripts life.py, rain.py and tclock.py (but not xmas.py) and Slap, of course.
+
+=== Structure ===
+
+wcurses is constructed out of a Python emulation layer (wcurses.py) and a simple Windows extension (`_`wcurses`_`c.pyd) which provides a minimal set of low level Windows console routines. All of the curses logic is in wcurses.py. The advantage of this structure is that enhancing wcurses is straight forward Python programming. For most functionality (with some exceptions), there is no need to deal with any low level Windows details.
+An additional bonus of this structure is runtime stability and no crashing.
+
+== Where to get it ==
+
+wcurses/mcurses is available as part of the Slap source code. You can browse the source here: http://slapstick.googlecode.com/svn/trunk/src/mcurses/
+
+
+
+
