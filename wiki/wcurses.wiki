@@ -3,7 +3,7 @@ Curses for Windows
 
 = Introduction =
 
-The Python distribution does not support curses on Windows because there is no native curses library for Windows. To allow Slap to run with a curses interface on Windows, wcurses/mcurses was written.
+The Python distribution does not support curses on Windows because there is no native curses library for Windows. wcurses/mcurses was written to allow Slap to run with a curses interface on Windows.
 
 = Details =
 
@@ -32,7 +32,6 @@ An additional bonus of this structure is runtime stability and no crashing.
 == Where to get it ==
 
 wcurses/mcurses is available as part of the Slap source code. You can browse the source here: http://slapstick.googlecode.com/svn/trunk/src/mcurses/
-
 
 
 
