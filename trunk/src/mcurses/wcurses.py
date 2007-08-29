@@ -8,7 +8,7 @@
 #
 # wcurses - minimal (e.g. woefully incomplete) curses display emulation on Windows
 #
-import msvcrt, sys, time, winsound
+import msvcrt, sys, time, weakref, winsound
 
 import ascii
 import wcurses_c as wc
@@ -206,17 +206,23 @@ class Window(object):
         if x + length >= len(buf[y]):
             attrs[y] += [self.default_attr] * (x+length-len(attrs[y])) 
             buf[y] += [self.default_char] * (x+length-len(buf[y]))
-    def _flatten_children(self):
+    def _flatten_child(self, child):
         sbx, sby = self.rect[:2]
-        for child in self.children:
-            cbx, cby, cex, cey = child.rect
-            rx, ry = cbx - sbx, cby - sby
-            lx, ly = cex - cbx, cey - cby
-            for y in xrange(ly):
-                if not child.dirty[y]: continue
-                self.dirty[y+ry] = 1
-                self.buf[y+ry][rx:rx+lx] = child.buf[y][:]
-                self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:]
+        cbx, cby, cex, cey = child.rect
+        rx, ry = cbx - sbx, cby - sby
+        lx, ly = cex - cbx, cey - cby
+        for y in xrange(ly):
+            if not child.dirty[y]: continue
+            self.dirty[y+ry] = 1
+            self.buf[y+ry][rx:rx+lx] = child.buf[y][:]
+            self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:]
+    def _flatten_children(self):
+        for child_ref in self.children[:]:
+            child = child_ref()
+            if child == None:
+                self.children.remove(child_ref)
+            else:
+                self._flatten_child(child)
     def _init_buf(self):
         # Initialize to rect to ensure drawing doesn't
         # need any fancy logic 
@@ -459,9 +465,9 @@ class Window(object):
         wc.move(x + self.rect[0], y + self.rect[1])
     def nodelay(self, yes):
         if yes:
-            self.delay = -1 # blocking
-        else:
             self.delay = 0 # non-blocking
+        else:
+            self.delay = -1 # blocking
     def _ptr_array_build(self, a, lst):
         for i in xrange(len(lst)):
             wc.short_array_setitem(a, i, int(lst[i]))
@@ -486,6 +492,9 @@ class Window(object):
         else:
             buf_bx, buf_by = 0, 0
             scr_bx, scr_by, scr_ex, scr_ey = self.rect
+        self._flatten_children()
+        if self.parent:
+            self.parent._flatten_child(self)
         x = scr_bx
         sx = scr_ex - x
         a = wc.new_short_array(sx)
@@ -524,7 +533,7 @@ class Window(object):
         if sy >= self.rect[3]:
             sy = self.rect[3] - 1
         win = Window((x, y, sx, sy), pad=False, parent=self)
-        self.children.append(win)
+        self.children.append(weakref.ref(win))
         return win
     def timeout(self, delay):
         self.delay = delay
