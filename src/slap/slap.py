@@ -44,7 +44,26 @@ g_player_controller = None
 g_display = None
 g_mode = MODE_NONE
 
-class wList(object):
+class wObject(object):
+    def _prepare_key_map(self, map):
+        for entry in map:
+            keys = entry[0]
+            for i in xrange(len(keys)):
+                k = keys[i]
+                if type(k) == str:
+                    keys[i] = ord(k)
+    def _dispatch_key(self, map, key_code):
+        for entry in map:
+            keys, fn, param = entry
+            if key_code in keys:
+                if param == None:
+                    fn()
+                else:    
+                    fn(eval(param))
+                return True
+        return False       
+    
+class wList(wObject):
     def __init__(self, scr):
         self.scr = scr
         self.items = []
@@ -56,7 +75,25 @@ class wList(object):
         self.text_offset = 0
         self.size = 0, 0
         self.grok_size()
-
+        # key map: keys, function, parameter
+        self.key_map_all = \
+        [[['s', 'S', curses.KEY_LEFT], self.text_offset_move, '-5'],
+         [['d', 'D', curses.KEY_RIGHT], self.text_offset_move, '5'],
+        ]
+        self.key_map_select = \
+        [[['a', curses.KEY_UP], self.cursor_move, '-1'],
+         [['A', curses.KEY_PPAGE], self.cursor_move, '-self.size[1]'],
+         [['z', curses.KEY_DOWN], self.cursor_move, '1'],
+         [['Z', curses.KEY_NPAGE], self.cursor_move, 'self.size[1]'],
+        ]
+        self.key_map_view = \
+        [[['a', curses.KEY_UP], self.view_move, '-1'],
+         [['A', curses.KEY_PPAGE], self.view_move, '-self.size[1]'],
+         [['z', curses.KEY_DOWN], self.view_move, '1'],
+         [['Z', curses.KEY_NPAGE], self.view_move, 'self.size[1]'],
+        ] 
+        [self._prepare_key_map(map) for map in (self.key_map_all, self.key_map_select, self.key_map_view)]
+        
     def grok_size(self):
         old_size = self.size
         y, x = self.scr.getmaxyx()
@@ -153,6 +190,15 @@ class wList(object):
     def refresh(self):
         self.scr.refresh()
 
+    def dispatch_key(self, key_code):
+        s = self._dispatch_key(self.key_map_all, key_code)
+        if s: return s
+        if self.mode == self.MODE_SELECT:
+            key_map = self.key_map_select
+        else:
+            key_map = self.key_map_view
+        return self._dispatch_key(key_map, key_code)
+
 def display_setup(scr):
     display = struct()
     display.scr = scr
@@ -245,6 +291,7 @@ def slap_validate(key_code):
     display = g_display
     mode = g_mode
     if mode == MODE_LIST:
+        if display.select_list.dispatch_key(key_code): return None
         if key_code == curses.ascii.ESC: # clear filter on ESC
             g_file_active_set = g_file_db
             display.select_list.set_items(g_file_active_set)
@@ -264,18 +311,6 @@ def slap_validate(key_code):
             player_controller.next_track()
         elif key_code in (ord('q'), ord('Q')): 
             return curses.ascii.BEL # Q (QUIT)
-        elif key_code in (ord('a'), curses.KEY_UP): # a (UP)
-            display.select_list.cursor_move(-1)
-        elif key_code in (ord('A'), curses.KEY_PPAGE): # A (PAGE UP)
-            display.select_list.cursor_move(-display.select_list.size[1])
-        elif key_code in (ord('z'), curses.KEY_DOWN): # z (DOWN)
-            display.select_list.cursor_move(1)
-        elif key_code in (ord('Z'), curses.KEY_NPAGE): # Z (PAGE DOWN)
-            display.select_list.cursor_move(display.select_list.size[1])
-        elif key_code in (ord('s'), ord('S'), curses.KEY_LEFT): # S (text offset left)
-            display.select_list.text_offset_move(-5)
-        elif key_code in (ord('d'), ord('D'), curses.KEY_RIGHT): # D (text offset right)
-            display.select_list.text_offset_move(5)
         elif key_code == ord('/'): # / (SEARCH)
             slap_enter_mode(MODE_SEARCH)
         elif key_code == ord('\t'): # TAB (QUEUE mode)
@@ -286,6 +321,7 @@ def slap_validate(key_code):
             slap_enter_mode(MODE_STATS)
         key_code = None
     elif mode == MODE_QUEUE:
+        if display.queue_list.dispatch_key(key_code): return None
         if key_code in (curses.ascii.ESC, ord('\t')): # exit mode on ESC
             slap_enter_mode(MODE_LIST)
         elif key_code == curses.ascii.SP: # SPACE (PAUSE/UNPAUSE)
@@ -294,18 +330,6 @@ def slap_validate(key_code):
             player_controller.previous_track()
         elif key_code in (ord('n'), ord('N')): # N (NEXT)
             player_controller.next_track()
-        elif key_code in (ord('a'), curses.KEY_UP):
-            display.queue_list.view_move(-1)
-        elif key_code in (ord('A'), curses.KEY_PPAGE):
-            display.queue_list.view_move(-display.queue_list.size[1])
-        elif key_code in (ord('z'), curses.KEY_DOWN):
-            display.queue_list.view_move(1)
-        elif key_code in (ord('Z'), curses.KEY_NPAGE):
-            display.queue_list.view_move(display.queue_list.size[1])
-        elif key_code in (ord('s'), ord('S'), curses.KEY_LEFT): # S (text offset left)
-            display.queue_list.text_offset_move(-5)
-        elif key_code in (ord('d'), ord('D'), curses.KEY_RIGHT): # D (text offset right)
-            display.queue_list.text_offset_move(5)
         key_code = None
     elif mode == MODE_SEARCH:
         #print key_code
@@ -334,6 +358,7 @@ def slap_validate(key_code):
             if key_code in (curses.ascii.DEL, curses.KEY_BACKSPACE) : # backspace
                 key_code = curses.ascii.BS
     elif mode in (MODE_HELP, MODE_STATS):
+        if display.help_list.dispatch_key(key_code): return None
         if key_code == curses.ascii.ESC: # exit mode on ESC
             slap_enter_mode(MODE_LIST)
         elif key_code == curses.ascii.SP: # SPACE (PAUSE/UNPAUSE)
@@ -342,14 +367,6 @@ def slap_validate(key_code):
             player_controller.previous_track()
         elif key_code in (ord('n'), ord('N')): # N (NEXT)
             player_controller.next_track()
-        elif key_code in (ord('a'), curses.KEY_UP):
-            display.help_list.view_move(-1)
-        elif key_code in (ord('A'), curses.KEY_PPAGE):
-            display.help_list.view_move(-display.queue_list.size[1])
-        elif key_code in (ord('z'), curses.KEY_DOWN):
-            display.help_list.view_move(1)
-        elif key_code in (ord('Z'), curses.KEY_NPAGE):
-            display.help_list.view_move(display.queue_list.size[1])
         key_code = None
     return key_code
 
