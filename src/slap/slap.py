@@ -16,8 +16,6 @@ from mcurses import textbox
 
 VERSION = 1
 
-MODE_NONE, MODE_LIST, MODE_QUEUE, MODE_SEARCH, MODE_HELP, MODE_STATS = range(6)
-
 DB_ENTRY_SIZE = 6
 DB_DISPLAY, DB_ARTIST, DB_ALBUM, DB_TITLE, DB_ORDINAL, DB_PATH = range(DB_ENTRY_SIZE)
 DB_ORDER_STR = """
@@ -39,11 +37,9 @@ g_stats.scan_start = 0
 g_stats.scan_time = 0
 g_stats.key_presses = 0
 g_file_db = []
-g_file_active_set = []
-g_player_controller = None
-g_display = None
-g_mode = MODE_NONE
 
+# key map format is
+# keys, function, parameter
 class wObject(object):
     def _prepare_key_map(self, map):
         for entry in map:
@@ -62,12 +58,14 @@ class wObject(object):
                     fn(eval(param))
                 return True
         return False       
-    
+    def refresh(self):
+        self.scr.refresh()
+        
 class wList(wObject):
+    MODE_SELECT, MODE_VIEW = range(2)
     def __init__(self, scr):
         self.scr = scr
         self.items = []
-        self.MODE_SELECT, self.MODE_VIEW = range(2)
         self.mode = self.MODE_SELECT
         self.cursor = 0
         self.hilite = 0
@@ -168,8 +166,7 @@ class wList(wObject):
     def draw(self):
         if self.grok_size():
             self.cursor_move(0) # Window size changed, force a cursor update
-        self.scr.clear()
-        if self.mode == self.MODE_SELECT:
+        if self.mode == wList.MODE_SELECT:
             bi = self.cursor - self.hilite
         else:
             bi = self.view_offset
@@ -186,269 +183,308 @@ class wList(wObject):
             except:
                 pass
             self.scr.clrtoeol()
+        bi = ei - bi
+        ei = self.size[1]
+        for i in xrange(bi, ei):
+            self.scr.move(i, 0)
+            self.scr.clrtoeol()
             
-    def refresh(self):
-        self.scr.refresh()
-
     def dispatch_key(self, key_code):
         s = self._dispatch_key(self.key_map_all, key_code)
-        if s: return s
-        if self.mode == self.MODE_SELECT:
+        if s:
+            self.draw()
+            return s
+        if self.mode == wList.MODE_SELECT:
             key_map = self.key_map_select
         else:
             key_map = self.key_map_view
-        return self._dispatch_key(key_map, key_code)
+        s = self._dispatch_key(key_map, key_code)
+        if s:
+            self.draw()
+        return s    
 
-def display_setup(scr):
-    display = struct()
-    display.scr = scr
-    scr_maxyx = display.scr.getmaxyx()
-    scr_maxxy = scr_maxyx[1], scr_maxyx[0]
-
-    # status
-    display.status_off = (0, 0)
-    display.status_size = (1, 2)
-    display.status_scr = scr.derwin(display.status_size[1], display.status_size[0],
-                                    display.status_off[1], display.status_off[0])
-
-    # textbox/pad
-    display.pad_off = (2, 0)
-    display.pad_size = (scr_maxxy[0] - display.pad_off[0], 1)
-    display.pad_scr = scr.derwin(display.pad_size[1], display.pad_size[0], 
-                                 display.pad_off[1], display.pad_off[0])
-    display.pad = textbox.Textbox(display.pad_scr, slap_validate, slap_callback)
-    display.pad.stripspaces = False
-    # list
-    display.list_off = (0, 1)
-    display.list_size = (scr_maxxy[0], scr_maxxy[1] - display.list_off[1])
-    display.list_scr = scr.derwin(display.list_size[1], display.list_size[0], 
-                                  display.list_off[1], display.list_off[0])
-    display.select_list = wList(display.list_scr)
-    # queue
-    display.queue_list = wList(display.list_scr)
-    display.queue_list.mode = display.queue_list.MODE_VIEW
-    # kill
-    display.kill_list = wList(display.list_scr)
-    # help
-    display.help_list = wList(display.list_scr)
-    display.help_list.mode = display.help_list.MODE_VIEW
-
-    scr.clear()
-    scr.refresh()
-    display.pad_scr.addstr(0, 0, '  For help at any point press <ESC> H  '[:scr_maxxy[0]-3], curses.A_STANDOUT)
-    display.showing_help = 1
-
-    return display
-
-def display_update(display, mode, player_controller):
-    display.status_scr.refresh()
-    display.pad.win.refresh()
-    if mode in (MODE_LIST, MODE_SEARCH):
-        display.select_list.draw()
-        display.select_list.refresh()
-    elif mode == MODE_QUEUE:
-        display.queue_list.cursor_move_absolute(player_controller.position)
-        display.queue_list.draw()
-        display.queue_list.refresh()
-    elif mode in (MODE_HELP, MODE_STATS):
-        display.help_list.draw()
-        display.help_list.refresh()
-    
-def slap_enter_mode(new_mode):
-    global g_display, g_mode, g_player_controller
-    display = g_display
-    mode = g_mode
-    player_controller = g_player_controller
-    if mode == new_mode: return
-    if new_mode != MODE_LIST:
-        if display.showing_help: # clear out startup help message
-            display.pad_scr.move(0, 0)
-            display.pad_scr.clrtoeol()
-            display.showing_help = 0
-    if new_mode == MODE_LIST:
-        if g_file_active_set != g_file_db:
-            display.status_scr.addch(0, 0, '=')
-        else:
-            display.status_scr.addch(0, 0, ' ')
-    elif new_mode == MODE_QUEUE:
-        display.status_scr.addch(0, 0, 'Q')
-        display.queue_list.set_items(player_controller.track_list)
-        display.queue_list.view_center(player_controller.position)
-    elif new_mode == MODE_SEARCH:
-        display.status_scr.addch(0, 0, '>')
-    elif new_mode == MODE_HELP:
-        display.status_scr.addch(0, 0, 'H')
-        slap_print_help(display.help_list)
-    elif new_mode == MODE_STATS:
-        display.status_scr.addch(0, 0, 'S')
-        slap_print_stats(display.help_list)
+class wTextBox(wObject):
+    def __init__(self, scr):
+       self.scr = scr
+       self.box = textbox.Textbox(self.scr)
+       self.box.stripspaces = False
+       self.key_map = []
+    def clear(self):
+        self.box.clear()
+    def dispatch_key(self, key_code):
+        if self._dispatch_key(self.key_map, key_code): return True
+        self.box.edit_one(key_code)
+        return True
+    def draw(self):
+        self.box.draw()
+    def text(self):
+        return self.box.gather()
         
-    g_mode = new_mode
-
-def slap_validate(key_code):
-    global g_display, g_mode, g_file_active_set, g_file_db, g_player_controller
-    player_controller = g_player_controller
-    display = g_display
-    mode = g_mode
-    if mode == MODE_LIST:
-        if display.select_list.dispatch_key(key_code): return None
-        if key_code == curses.ascii.ESC: # clear filter on ESC
-            g_file_active_set = g_file_db
-            display.select_list.set_items(g_file_active_set)
-            display.pad.clear()
-            display.status_scr.addch(0, 0, ' ')
-        elif key_code in (curses.ascii.NL, curses.ascii.CR): # ENTER (PLAY track list)
-            player_controller.start_track_list(g_file_active_set[display.select_list.cursor:])
-        elif key_code in (ord("\\"), ord('|')): # '" (QUEUE track)
-            player_controller.queue_track_list([g_file_active_set[display.select_list.cursor]])
-        elif key_code in (ord("'"), ord('"')): # '" (QUEUE track list)
-            player_controller.queue_track_list(g_file_active_set[display.select_list.cursor:])
-        elif key_code == curses.ascii.SP: # SPACE (PAUSE/UNPAUSE)
-            player_controller.pause()
-        elif key_code in (ord('b'), ord('B')): # B (PREVIOUS)
-            player_controller.previous_track()
-        elif key_code in (ord('n'), ord('N')): # N (NEXT)
-            player_controller.next_track()
-        elif key_code in (ord('q'), ord('Q')): 
-            return curses.ascii.BEL # Q (QUIT)
-        elif key_code == ord('/'): # / (SEARCH)
-            slap_enter_mode(MODE_SEARCH)
-        elif key_code == ord('\t'): # TAB (QUEUE mode)
-            slap_enter_mode(MODE_QUEUE)
-        elif key_code in (ord('h'), ord('H')): # H (HELP)
-            slap_enter_mode(MODE_HELP)
-        elif key_code in (ord('t'), ord('T')): # T (STATS)
-            slap_enter_mode(MODE_STATS)
-        key_code = None
-    elif mode == MODE_QUEUE:
-        if display.queue_list.dispatch_key(key_code): return None
-        if key_code in (curses.ascii.ESC, ord('\t')): # exit mode on ESC
-            slap_enter_mode(MODE_LIST)
-        elif key_code == curses.ascii.SP: # SPACE (PAUSE/UNPAUSE)
-            player_controller.pause()
-        elif key_code in (ord('b'), ord('B')): # B (PREVIOUS)
-            player_controller.previous_track()
-        elif key_code in (ord('n'), ord('N')): # N (NEXT)
-            player_controller.next_track()
-        key_code = None
-    elif mode == MODE_SEARCH:
-        #print key_code
-        if key_code == curses.ascii.ESC: # exit mode on ESC
-            g_file_active_set = g_file_db
-            display.select_list.set_items(g_file_active_set)
-            display.pad.clear()
-            slap_enter_mode(MODE_LIST)
-            key_code = None
-        elif key_code in (curses.ascii.NL, curses.ascii.CR): # enter
-            slap_enter_mode(MODE_LIST)
-            key_code = None
-        elif key_code == curses.KEY_UP: # (UP)
-            display.select_list.cursor_move(-1)
-            key_code = None
-        elif key_code == curses.KEY_PPAGE: # (PAGE UP)
-            display.select_list.cursor_move(-display.select_list.size[1])
-            key_code = None
-        elif key_code == curses.KEY_DOWN: # (DOWN)
-            display.select_list.cursor_move(1)
-            key_code = None
-        elif key_code == curses.KEY_NPAGE: # (PAGE DOWN)
-            display.select_list.cursor_move(display.select_list.size[1])
-            key_code = None
+class wSearchList(wObject):
+    def __init__(self, scr, id=None, item_filter=None):
+        self.scr = scr
+        self.id = id
+        self.items = []
+        self.item_filter = item_filter # XXX fix this to use default if none given
+        scr_maxxy = list(scr.getmaxyx())
+        scr_maxxy.reverse()
+        if id == None:
+            box_off = (0, 0)
         else:
-            if key_code in (curses.ascii.DEL, curses.KEY_BACKSPACE) : # backspace
-                key_code = curses.ascii.BS
-    elif mode in (MODE_HELP, MODE_STATS):
-        if display.help_list.dispatch_key(key_code): return None
-        if key_code == curses.ascii.ESC: # exit mode on ESC
-            slap_enter_mode(MODE_LIST)
-        elif key_code == curses.ascii.SP: # SPACE (PAUSE/UNPAUSE)
-            player_controller.pause()
-        elif key_code in (ord('b'), ord('B')): # B (PREVIOUS)
-            player_controller.previous_track()
-        elif key_code in (ord('n'), ord('N')): # N (NEXT)
-            player_controller.next_track()
-        key_code = None
-    return key_code
+            box_off = (2, 0)
+        box_size = (scr_maxxy[0] - box_off[0], 1)
+        box_scr = scr.derwin(box_size[1], box_size[0], box_off[1], box_off[0])
+        self.text_box = wTextBox(box_scr)
+        list_off = (0, 1)
+        list_size = (scr_maxxy[0], scr_maxxy[1] - list_off[1])
+        list_scr = scr.derwin(list_size[1], list_size[0], list_off[1], list_off[0])
+        self.list = wList(list_scr)
+        self.MODE_LIST, self.MODE_SEARCH = range(2)
+        self.mode = self.MODE_LIST
+        self.key_map_list = \
+        [[['/'], self.mode_search, None],
+         [[curses.ascii.ESC], self.clear_search, None],
+        ]
+        self.key_map_search = \
+        [[[curses.ascii.ESC, curses.ascii.NL], self.mode_list, 'key_code'],
+         [[curses.KEY_UP, curses.KEY_DOWN, curses.KEY_PPAGE, curses.KEY_NPAGE], self.list.dispatch_key, 'key_code'],
+         [[curses.ascii.DEL, curses.KEY_BACKSPACE], self.text_box.dispatch_key, 'curses.ascii.BS'],
+        ]
+        [self._prepare_key_map(map) for map in (self.key_map_list, self.key_map_search)]
 
-def slap_callback(key_code):
-    global g_file_active_set, g_file_db, g_player_controller
-    mode = g_mode
-    display = g_display
-    player_controller = g_player_controller
-    if mode == MODE_SEARCH:
-        text = display.pad.gather()
-        g_file_active_set = filter_items(g_file_db, text)
-        display.select_list.set_items(g_file_active_set)
-    display_update(display, g_mode, player_controller)
+    def clear_search(self):
+        self.text_box.clear()
+        self._update_items()
+
+    def mode_search(self):
+        self.mode = self.MODE_SEARCH
     
-def slap(scr):
-    global g_display, g_file_db, g_file_active_set, g_player_controller, g_mode, g_stats
-
-    g_file_active_set = g_file_db
-    player_controller = player.PlayerController()
-    g_player_controller = player_controller
-    display = display_setup(scr)
-    g_display = display
-    display.select_list.set_items(g_file_active_set)
-    slap_enter_mode(MODE_LIST)
-    display_update(display, g_mode, player_controller)
-
-    timeout = None
-    done = False
-    while not done:
-        sos = []
-
-        sos.append(sys.stdin)
-        sos.append(player_controller.fd())
-        try:
-            ri, ro, rerr = select.select(sos, [], [], timeout)
-        except: # XXX force some window update logic here
-            continue
-        for so in ri:
-            if so == sys.stdin:
-                g_stats.key_presses += 1
-                done = display.pad.edit_one()
-            elif so == player_controller.fd():
-                if player_controller.update():
-                    display_update(display, g_mode, player_controller)
-                    
-
-def slap_print_help(lst):
-    hlp = """
+    def mode_list(self, method):
+        if method == curses.ascii.ESC:
+            self.clear_search()
+        self.mode = self.MODE_LIST
+        
+    def set_items(self, items):
+        old_items = self.items
+        self.items = items
+        if old_items != self.items:
+            self.list.set_items(items)
+            self.list.cursor_move_absolute(0)
+            self.text_box.clear()
+            self._update_items()
     
-    Help
-    ====
+    def set_list_mode(self, mode):
+        self.list.mode = mode
     
-    <ESC>         Return to track selection mode
-    a/<Up>        Scroll one line up
-    z/<Down>      Scroll one line down
-    A/<Page Up>   Scroll one page up
-    Z/<Page Down> Scroll one page down
+    def cursor_move_absolute(self, off):
+        self.list.cursor_move_absolute(off)
+
+    def get_cursor(self):
+        return self.list.cursor
+    
+    def view_center(self, off=None):
+        self.list.view_center(off)
+        
+    def get_active_items(self):
+        return self.list.items
+        
+    def _update_items(self):
+        text = self.text_box.text()
+        if self.item_filter:
+            self.list.set_items(self.item_filter(self.items, text))
+    
+    def draw(self):
+        self.list.draw()
+        self.text_box.draw()
+        if self.id != None:
+            if self.mode == self.MODE_LIST:
+                if self.items == self.list.items:
+                    self.scr.addch(0, 0, self.id, curses.A_NORMAL)
+                else:
+                    self.scr.addch(0, 0, self.id, curses.A_STANDOUT)
+            else: # self.mode == self.MODE_SEARCH
+                self.scr.addch(0, 0, self.id, curses.A_NORMAL | curses.A_BOLD)
+
+    def refresh(self):
+        self.scr.refresh()
+        self.list.refresh()
+        self.text_box.refresh()
+    
+    def dispatch_key(self, key_code):
+        if self.mode == self.MODE_LIST:
+            key_map = self.key_map_list
+        else: # mode == self.MODE_SEARCH
+            key_map = self.key_map_search
+        if self._dispatch_key(key_map, key_code): return True
+        if self.mode == self.MODE_LIST:
+            return self.list.dispatch_key(key_code)
+        else: # mode == self.MODE_SEARCH
+            if self.text_box.dispatch_key(key_code): 
+                self._update_items()
+                return True
+            return self.list.dispatch_key(key_code) # XXX at the moment text box always returns True so this never gets called
+        
+class wSlap(wObject):
+    def __init__(self, scr, tracks):
+        self.done = False
+        self.player_controller = player.PlayerController()
+        self.stats_init()
+        self.scr = scr
+        nof_modes = 5
+        self.MODE_NONE, self.MODE_LIST, self.MODE_QUEUE, self.MODE_HELP, self.MODE_STATS = range(nof_modes)
+        self.mode = self.MODE_NONE
+        self.mode_prev = self.MODE_NONE
+        self.list = [None] * nof_modes
+        alist = self.list[self.MODE_LIST] = wSearchList(self.scr, 'T', filter_items)
+        alist.set_items(tracks) # load up tracks
+        alist = self.list[self.MODE_QUEUE] = wSearchList(self.scr, 'Q', filter_items)
+        alist.set_list_mode(wList.MODE_VIEW)
+        alist = self.list[self.MODE_HELP] = wSearchList(self.scr, 'H', filter_items)
+        alist.set_list_mode(wList.MODE_VIEW)
+        alist = self.list[self.MODE_STATS] = wSearchList(self.scr, '0', filter_items)
+        alist.set_list_mode(wList.MODE_VIEW)
+        self.help_print()
+        self.key_map = \
+        [[['H', 'h'], self.enter_mode, 'self.MODE_HELP'],
+         [['0'], self.enter_mode, 'self.MODE_STATS'],
+         [['T', 't'], self.enter_mode, 'self.MODE_LIST'],
+         [['\t'], self.enter_mode, 'self.MODE_QUEUE'],
+         [['Q', 'q'], self.quit, None],
+         [['N', 'n'], self.player_controller.next_track, None],
+         [['B', 'b'], self.player_controller.previous_track, None],
+         [[curses.ascii.SP], self.player_controller.pause, None],
+         [[curses.ascii.NL], self.play_track_list, None],
+         [["'", '"'], self.queue_track_list, None],
+         [['\\', '|'], self.queue_track, None],
+        ]
+        self._prepare_key_map(self.key_map)
+    
+    def stats_init(self):
+        self.stats = struct()
+        self.stats.key_presses = 0
+
+    def enter_mode(self, new_mode):
+        if self.mode == new_mode:
+            new_mode = self.mode_prev
+        if new_mode == self.MODE_QUEUE:
+            alist = self.list[new_mode]
+            alist.set_items(self.player_controller.track_list)
+            alist.view_center(self.player_controller.position)
+        if new_mode == self.MODE_STATS:
+            self.stats_print()
+        self.mode_prev = self.mode    
+        self.mode = new_mode
+        self.list[self.mode].refresh()
+    
+    def quit(self):
+        self.done = True
+    
+    def play_track_list(self):
+        if self.mode == self.MODE_LIST:
+            alist = self.list[self.MODE_LIST]
+            items = alist.get_active_items()[alist.get_cursor():]
+            self.player_controller.start_track_list(items)
+
+    def queue_track(self):
+        if self.mode == self.MODE_LIST:
+            alist = self.list[self.MODE_LIST]
+            items = alist.get_active_items()[[alist.get_cursor()]]
+            self.player_controller.queue_track_list(items)
+            
+    def queue_track_list(self):
+        if self.mode == self.MODE_LIST:
+            alist = self.list[self.MODE_LIST]
+            items = alist.get_active_items()[alist.get_cursor():]
+            self.player_controller.queue_track_list(items)
+    
+    def dispatch_key(self, key_code):
+        if self.list[self.mode].dispatch_key(key_code): return True
+        return self._dispatch_key(self.key_map, key_code)
+    
+    def draw(self):
+        alist = self.list[self.MODE_QUEUE]
+        alist.cursor_move_absolute(self.player_controller.position)
+        self.list[self.mode].draw()
+                
+    def refresh(self):
+        self.list[self.mode].refresh()
+        
+    def run(self):
+        self.enter_mode(self.MODE_LIST)
+        self.draw()
+        self.refresh()
+        timeout = None
+        while not self.done:
+            sos = []
+    
+            sos.append(sys.stdin)
+            sos.append(self.player_controller.fd())
+            try:
+                ri, ro, rerr = select.select(sos, [], [], timeout)
+            except: # XXX force some window update logic here
+                continue
+            for so in ri:
+                if so == sys.stdin:
+                    self.stats.key_presses += 1
+                    #key_code = self.scr.getch()
+                    key_code = self.list[self.mode].text_box.scr.getch() # XXX
+                    self.dispatch_key(key_code)
+                    self.draw()
+                    self.refresh()
+                elif so == self.player_controller.fd():
+                    if self.player_controller.update():
+                        self.draw()
+                        self.refresh()
+
+    def stats_print(self):
+        s = """
+    Stats
+    =====
+    
+    %d Release 
+    %d files
+    %.2fs to scan
+    %d key presses
+    %.2fs running
+    
+""" % (VERSION, len(self.list[self.MODE_LIST].items), g_stats.scan_time, self.stats.key_presses, time.time() - g_stats.scan_start)
+        lines = s.split('\n')
+        self.list[self.MODE_STATS].set_items(zip(lines, [0]*len(lines)))    
+
+    def help_print(self):
+        hlp = """
+
+    Modes
+    =====
+    
+    h/H           Help       (H) 
+    t/T           Track List (T)
+    <Tab>         Queue      (Q)
+    0             Stats      (0)
+    
+    Controls
+    ========
+
+    q/Q           Quit
     <Space>       Pause/Unpause
     n/N           Play next track in queue
     b/B           Play previous track in queue
     
-    Track Selection Mode
-    ====================
-    
-    h/H           This help
-    q/Q           Quit
-    a/<Up>        Move highlight one track up
-    z/<Down>      Move highlight one track down
-    A/<Page Up>   Move highlight one page up
-    Z/<Page down> Move highlight one page down
+    /             Enter search mode
+    <Esc>         Clear search filter
+    a/<Up>        Scroll one line up/Move highlight one track up
+    z/<Down>      Scroll one line down/Move highlight one track down
+    A/<Page Up>   Scroll one page up/Move highlight one page up
+    Z/<Page Down> Scroll one page down/Move highlight one page down
     s/S/<Left>    Scroll display to the left
     d/D/<Right>   Scroll display to the right
+    
+    Track List Mode
+    ===============
+    
     <Enter>       Start playing tracks starting with highlighted track
     \/|           Queue highlighted track
     '/"           Queue tracks starting with highlighted track
-    <Space>       Pause/Unpause
-    n/N           Play next track in queue
-    b/B           Play previous track in queue
-    /             Enter search mode
-    <Esc>         Clear search filter
-    <Tab>         Enter queue view mode
-    t/T           Enter stats mode
     
     Search Mode
     ===========
@@ -470,47 +506,15 @@ def slap_print_help(lst):
 
     Valid field numbers for N are:
     %s
-    
-    Queue View Mode
-    ===============
-    
-    <Esc>/<Tab>   Return to track selection mode
-    a/<Up>        Scroll one track up
-    z/<Down>      Scroll one track down
-    A/<Page Up>   Scroll one page up
-    Z/<Page Down> Scroll one page down
-    s/S/<Left>    Scroll display to the left
-    d/D/<Right>   Scroll display to the right
 
-    Stats Mode
-    ==========
-    
-    <ESC>         Return to track selection mode
-    a/<Up>        Scroll one line up
-    z/<Down>      Scroll one line down
-    A/<Page Up>   Scroll one page up
-    Z/<Page Down> Scroll one page down
-    <Space>       Pause/Unpause
-    n/N           Play next track in queue
-    b/B           Play previous track in queue
 """ % (DB_ORDER_STR)
-    lines = hlp.split('\n')
-    lst.set_items(zip(lines, [0]*len(lines)))
+        lines = hlp.split('\n')
+        self.list[self.MODE_HELP].set_items(zip(lines, [0]*len(lines)))
 
-def slap_print_stats(lst):
-    s = """
-    Stats
-    =====
-    
-    %d Release 
-    %d files
-    %.2fs to scan
-    %d key presses
-    %.2fs running
-    
-""" % (VERSION, len(g_file_db), g_stats.scan_time, g_stats.key_presses, time.time() - g_stats.scan_start)
-    lines = s.split('\n')
-    lst.set_items(zip(lines, [0]*len(lines)))
+def slap(scr):
+    global g_file_db
+    app = wSlap(scr, g_file_db)
+    app.run()
     
 def filespec_match(split_filename, file_spec):
     if split_filename[1] == file_spec: return split_filename
@@ -602,7 +606,7 @@ def filter_items_regex(items, s, field=DB_DISPLAY):
     return p_items
 
 def filter_items(items, s, field=DB_DISPLAY):
-    if len(s) == 0: return items
+    if len(s) == 0 or len(items) == 0: return items
     if s[0] == '+':
         try:
             field = int(s[1])
@@ -611,6 +615,7 @@ def filter_items(items, s, field=DB_DISPLAY):
         if field >= DB_ORDINAL: field = DB_DISPLAY
         s = s[2:]
         if len(s) == 0: return items
+    if field >= len(items[0]): field = DB_DISPLAY    
     if s[0] == '/': return filter_items_regex(items, s[1:], field)
     tokens = s.lower().split()
     p_items = items
