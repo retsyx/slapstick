@@ -176,6 +176,14 @@ class Textbox:
             self.win.move(y, 0)
             self.win.clrtoeol()
         self.win.move(0, 0)
+    
+    def draw(self):
+        for y in xrange(len(self.text)):
+            if len(self.text[y]) > 0:
+                self.win.addstr(y, 0, ''.join([chr(ascii.ascii(ch)) for ch in self.text[y]]))
+            else:
+                self.win.move(y, 0)
+            self.win.clrtoeol()
 
     def edit(self):
         "Edit in the widget window and collect the results."
@@ -193,10 +201,11 @@ class Textbox:
             self.win.refresh()
         return self.gather()
 
-    def edit_one(self):
-        "Edit in the widget window and collect the results."
+    def edit_one(self, ch=None):
+        """Edit one character in the widget window. If done (exit or enter pressed on
+           single line textbox), return True"""
         status = False
-        ch = self.win.getch()
+        if ch == None: ch = self.win.getch()
         o_ch = ch
         if self.validate: 
             ch = self.validate(ch)
