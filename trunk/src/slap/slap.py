@@ -246,7 +246,7 @@ class wSearchList(wObject):
          [[curses.ascii.ESC], self.clear_search, None],
         ]
         self.key_map_search = \
-        [[[curses.ascii.ESC, curses.ascii.NL], self.mode_list, 'key_code'],
+        [[[curses.ascii.ESC, curses.ascii.NL, curses.ascii.CR], self.mode_list, 'key_code'],
          [[curses.KEY_UP, curses.KEY_DOWN, curses.KEY_PPAGE, curses.KEY_NPAGE], self.list.dispatch_key, 'key_code'],
          [[curses.ascii.DEL, curses.KEY_BACKSPACE], self.text_box.dispatch_key, 'curses.ascii.BS'],
         ]
@@ -353,7 +353,7 @@ class wSlap(wObject):
          [['N', 'n'], self.player_controller.next_track, None],
          [['B', 'b'], self.player_controller.previous_track, None],
          [[curses.ascii.SP], self.player_controller.pause, None],
-         [[curses.ascii.NL], self.play_track_list, None],
+         [[curses.ascii.NL, curses.ascii.CR], self.play_track_list, None],
          [["'", '"'], self.queue_track_list, None],
          [['\\', '|'], self.queue_track, None],
         ]
