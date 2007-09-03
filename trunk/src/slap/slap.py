@@ -14,7 +14,7 @@ import mutagen, mutagen.easyid3
 import player
 from mcurses import textbox
 
-VERSION = 1
+VERSION = 2
 
 DB_ENTRY_SIZE = 6
 DB_DISPLAY, DB_ARTIST, DB_ALBUM, DB_TITLE, DB_ORDINAL, DB_PATH = range(DB_ENTRY_SIZE)
@@ -453,9 +453,9 @@ class wSlap(wObject):
     %d files
     %.2fs to scan
     %d key presses
-    %.2fs running
+    %s running
     
-""" % (VERSION, len(self.list[self.MODE_LIST].items), g_stats.scan_time, self.stats.key_presses, time.time() - g_stats.scan_start)
+""" % (VERSION, len(self.list[self.MODE_LIST].items), g_stats.scan_time, self.stats.key_presses, secs_to_str(time.time() - g_stats.scan_start))
         lines = s.split('\n')
         self.list[self.MODE_STATS].set_items(zip(lines, [0]*len(lines)))    
 
@@ -635,6 +635,14 @@ def filter_items(items, s, field=DB_DISPLAY):
         p_items = n_items
     return p_items
 
+def secs_to_str(s):
+    s = long(s)
+    h = s / 3600
+    s %= 3600
+    m = s /60
+    s %= 60
+    return '%dh%02dm%02ds' % (h, m, s)
+    
 def main():
     global g_stats, g_file_db
     print 'Scanning files...'
