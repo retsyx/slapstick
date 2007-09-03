@@ -77,6 +77,19 @@ wcurses_move(wcurses_t *wc, COORD *xy0)
 }
 
 int
+wcurses_getxy(wcurses_t *wc, COORD *xy)
+{
+    CONSOLE_SCREEN_BUFFER_INFO  csbi;
+    
+    GetConsoleScreenBufferInfo(wc->std_o, &csbi);
+    
+    xy->X = csbi.dwCursorPosition.X - wc->extent.Left;
+    xy->Y = csbi.dwCursorPosition.Y - wc->extent.Top;
+    
+    return 0;
+}
+
+int
 wcurses_move_raw(wcurses_t *wc, COORD *xy)
 {
  SetConsoleCursorPosition(wc->std_o, *xy);

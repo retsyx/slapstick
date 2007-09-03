@@ -226,7 +226,6 @@ class Window(object):
             else:   
                 x = 0
         self.xy = [x, y]
-        wc.move(x + self.rect[0], y + self.rect[1])
     def _ptr_array_build(self, a, lst):
         for i in xrange(len(lst)):
             wc.short_array_setitem(a, i, int(lst[i]))
@@ -379,7 +378,7 @@ class Window(object):
                 wc.write_row_chars(x, y, len(lnsx), a)
                 self.dirty[y] = 0
         wc.delete_short_array(a)        
-        # restore cursor
+        # move cursor
         wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
     def erase(self):
         self._init_buf()
@@ -467,7 +466,6 @@ class Window(object):
         elif y >= sy: 
             y = sy - 1
         self.xy = [x, y]
-        wc.move(x + self.rect[0], y + self.rect[1])
     def nodelay(self, yes):
         if yes:
             self.delay = 0 # non-blocking
@@ -489,6 +487,7 @@ class Window(object):
             self.dirty[y+ry] = 1
             self.buf[y+ry][rx:rx+lx] = child.buf[y][:lx]
             self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:lx]
+        self.xy = child.xy[0]+rx, child.xy[1]+ry    
     def noutrefresh(self): 
             stdscr._noutrefresh(self)
     def refresh(self, pminrow=None, pmincol=None, sminrow=None, smincol=None, smaxrow=None, smaxcol=None):
