@@ -13,8 +13,7 @@ import msvcrt, sys, time, weakref, winsound
 import ascii
 import wcurses_c as wc
 
-#COLS = 0
-#LINES = 0
+stdscr = None
 COLORS = COLOR_PAIRS = 256
 _pairs = []
 
@@ -111,12 +110,14 @@ def napms(ms):
     
 def nocbreak():
     pass
+
+def doupdate():
+    stdscr.doupdate()
     
 def echo():
     wc.echo()
     
 def endwin():
-    
     wc.echo()
     wc.deinit()
 
@@ -130,13 +131,14 @@ def init_pair(n, fg, bg):
     _pairs[n] = fg|(bg<<4)
 
 def initscr():
+    global stdscr
     wc.init()
-    win = newwin(0, 0)
-    win.refresh() # clear the screen
-    return win
+    stdscr = newwin(0, 0)
+    stdscr.refresh() # clear the screen
+    return stdscr
 
 def newpad(nlines, ncols):
-    return Window((0, 0, ncols, nlines), pad=True, parent=None)
+    return Window((0, 0, ncols, nlines), pad=True)
 
 def newwin(nlines, ncols, y=None, x=None):
     if (y != None and x == None) or (y == None and x != None):
@@ -148,7 +150,7 @@ def newwin(nlines, ncols, y=None, x=None):
         sx, sy = _screen_size()
         nlines, ncols = sy - y, sx - x
     if nlines < 0 or ncols < 0: raise Exception, 'Illegal parameters'
-    return Window((x, y, x+ncols, y+nlines), pad=False, parent=None)
+    return Window((x, y, x+ncols, y+nlines), pad=False)
     
 def noecho():
     wc.noecho()
@@ -174,9 +176,7 @@ def start_color():
     init_pair(8, COLOR_WHITE, COLOR_BLACK)
     
 class Window(object):
-    def __init__(self, rect, pad=False, parent=None):
-        self.parent = parent
-        self.children = []
+    def __init__(self, rect, pad=False):
         self.rect = rect # [x0, y0, x1, y1] in absolute screen coordinates
         self.pad = pad
         self.delay = -1
@@ -207,23 +207,27 @@ class Window(object):
         if x + length >= len(buf[y]):
             attrs[y] += [self.default_attr] * (x+length-len(attrs[y])) 
             buf[y] += [self.default_char] * (x+length-len(buf[y]))
-    def _flatten_child(self, child):
-        sbx, sby = self.rect[:2]
-        cbx, cby, cex, cey = child.rect
-        rx, ry = cbx - sbx, cby - sby
-        lx, ly = cex - cbx, cey - cby
+    def _flatten_child(self, child, cbx=None, cby=None, sbx=None, sby=None, sex=None, sey=None):
+        if cbx == None:
+            sbx, sby = self.rect[:2]
+            cbx, cby = 0, 0
+            cex, cey = child.rect[2] - child.rect[0], child.rect[3] - child.rect[1]
+            lx, ly = cex - cbx, cey - cby
+        else:
+            lx, ly = sex - sbx, sey - sby
+            cex, cey = cbx + lx, cby + ly
+        rx, ry = sbx - cbx, sby - cby
+        #print 'bla'
+        #print sbx, sby, sex, sey
+        #print cbx, cby, cex, cey
+        #print rx, ry
+        #print lx, ly
         for y in xrange(ly):
             if not child.dirty[y]: continue
+            child.dirty[y] = 0
             self.dirty[y+ry] = 1
-            self.buf[y+ry][rx:rx+lx] = child.buf[y][:]
-            self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:]
-    def _flatten_children(self):
-        for child_ref in self.children[:]:
-            child = child_ref()
-            if child == None:
-                self.children.remove(child_ref)
-            else:
-                self._flatten_child(child)
+            self.buf[y+ry][rx:rx+lx] = child.buf[y][:lx]
+            self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:lx]
     def _init_buf(self):
         # Initialize to rect to ensure drawing doesn't
         # need any fancy logic 
@@ -244,6 +248,9 @@ class Window(object):
                 x = 0
         self.xy = [x, y]
         wc.move(x + self.rect[0], y + self.rect[1])
+    def _ptr_array_build(self, a, lst):
+        for i in xrange(len(lst)):
+            wc.short_array_setitem(a, i, int(lst[i]))
     def addch(self, y, x=None, ch=None, attr=None):
         # emulate silly parameter combinations
         # ch             3
@@ -313,6 +320,7 @@ class Window(object):
             ch = None
         self.attrset(attr)
         if ch:
+            if type(ch) == str: ch = ord(ch)
             self.default_char = ch
     def border(self, ls=0, rs=0, ts=0, bs=0, tl=0, tr=0, bl=0, br=0):
         if not ls: ls = ACS_VLINE
@@ -377,6 +385,23 @@ class Window(object):
         x += self.rect[0]
         y += self.rect[1]
         return self.subwin(nlines, ncols, y, x)
+    def doupdate(self):
+        if self != stdscr: return
+        bx, by, ex, ey = self.rect
+        x = bx
+        a = wc.new_short_array(ex-bx)
+        for y in xrange(by, ey):
+            if self.dirty[y]:
+                lnsx = self.attrs[y]
+                self._ptr_array_build(a, lnsx)
+                wc.write_row_attrs(x, y, len(lnsx), a)
+                lnsx = self.buf[y]
+                self._ptr_array_build(a, lnsx)
+                wc.write_row_chars(x, y, len(lnsx), a)
+                self.dirty[y] = 0
+        wc.delete_short_array(a)        
+        # restore cursor
+        wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
     def erase(self):
         self._init_buf()
     def getbegyx(self):
@@ -469,9 +494,8 @@ class Window(object):
             self.delay = 0 # non-blocking
         else:
             self.delay = -1 # blocking
-    def _ptr_array_build(self, a, lst):
-        for i in xrange(len(lst)):
-            wc.short_array_setitem(a, i, int(lst[i]))
+    def noutrefresh(self): 
+            stdscr._flatten_child(self)
     def refresh(self, pminrow=None, pmincol=None, sminrow=None, smincol=None, smaxrow=None, smaxcol=None):
         t = (pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol)
         if None in t:
@@ -493,31 +517,8 @@ class Window(object):
         else:
             buf_bx, buf_by = 0, 0
             scr_bx, scr_by, scr_ex, scr_ey = self.rect
-        self._flatten_children()
-        if self.parent:
-            self.parent._flatten_child(self)
-        x = scr_bx
-        sx = scr_ex - x
-        a = wc.new_short_array(sx)
-        for y in xrange(scr_by, scr_ey):
-            if self.dirty[y-scr_by+buf_by]:
-                lnsx = self.attrs[y-scr_by+buf_by][buf_bx:buf_bx+sx]
-                self._ptr_array_build(a, lnsx)
-                wc.write_row_attrs(x, y, len(lnsx), a)
-                lnsx = self.buf[y-scr_by+buf_by][buf_bx:buf_bx+sx]
-                self._ptr_array_build(a, lnsx)
-                wc.write_row_chars(x, y, len(lnsx), a)
-                self.dirty[y-scr_by+buf_by] = 0
-        wc.delete_short_array(a)        
-        # restore cursor
-        wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
-    def debug_refresh(self):
-        i = 0
-        for ln in self.buf:
-            print '%02d' % (i),
-            print ''.join([chr(ch) for ch in ln])
-            #print '\n'
-            i += 1
+        stdscr._flatten_child(self, buf_bx, buf_by, scr_bx, scr_by, scr_ex, scr_ey)
+        doupdate()
     def subwin(self, nlines, ncols, y=None, x=None):
         if y == None:
             y, x = nlines, ncols
@@ -533,8 +534,7 @@ class Window(object):
             sx = self.rect[2] - 1
         if sy >= self.rect[3]:
             sy = self.rect[3] - 1
-        win = Window((x, y, sx, sy), pad=False, parent=self)
-        self.children.append(weakref.ref(win))
+        win = Window((x, y, sx, sy), pad=False)
         return win
     def timeout(self, delay):
         self.delay = delay
