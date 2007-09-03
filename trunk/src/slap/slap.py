@@ -58,8 +58,10 @@ class wObject(object):
                     fn(eval(param))
                 return True
         return False       
+    def invalidate(self):
+        self.scr.touchwin()
     def refresh(self):
-        self.scr.refresh()
+        self.scr.noutrefresh()
         
 class wList(wObject):
     MODE_SELECT, MODE_VIEW = range(2)
@@ -256,6 +258,11 @@ class wSearchList(wObject):
         self.text_box.clear()
         self._update_items()
 
+    def invalidate(self):
+        self.scr.touchwin()
+        self.text_box.invalidate()
+        self.list.invalidate()
+        
     def mode_search(self):
         self.mode = self.MODE_SEARCH
     
@@ -306,7 +313,7 @@ class wSearchList(wObject):
                 self.scr.addch(0, 0, self.id, curses.A_NORMAL | curses.A_BOLD)
 
     def refresh(self):
-        self.scr.refresh()
+        self.scr.noutrefresh()
         self.list.refresh()
         self.text_box.refresh()
     
@@ -374,7 +381,7 @@ class wSlap(wObject):
             self.stats_print()
         self.mode_prev = self.mode    
         self.mode = new_mode
-        self.list[self.mode].refresh()
+        self.list[self.mode].invalidate()
     
     def quit(self):
         self.done = True
@@ -408,6 +415,7 @@ class wSlap(wObject):
                 
     def refresh(self):
         self.list[self.mode].refresh()
+        curses.doupdate()
         
     def run(self):
         self.enter_mode(self.MODE_LIST)
