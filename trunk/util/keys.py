@@ -19,6 +19,9 @@ def main(win):
                     cdef = 'curses.ascii.'+d
                     break
         s = '%d %s' % (ch, cdef)        
+        win.move(10, 0)
+        win.deleteln()
+        win.move(0, 0)
         win.insertln()
         win.addstr(0, 0, s)
         
