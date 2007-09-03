@@ -354,7 +354,7 @@ class Window(object):
         y = self.xy[1]
         if y >= len(self.buf): return
         del self.dirty[y]
-        del self.attr[y]
+        del self.attrs[y]
         del self.buf[y]
     def derwin(self, nlines, ncols, y=None, x=None):
         if y == None:
@@ -450,7 +450,7 @@ class Window(object):
         self.dirty.insert(y, 1)
         for yy in xrange(y, len(self.dirty)):
             self.dirty[yy] = 1
-        self.attr.insert(y, [self.default_attr for xx in xrange(self.rect[2] - self.rect[0])])
+        self.attrs.insert(y, [self.default_attr for xx in xrange(self.rect[2] - self.rect[0])])
         self.buf.insert(y, [self.default_char for xx in xrange(self.rect[2] - self.rect[0])])
     def keypad(self, yes):
         pass
