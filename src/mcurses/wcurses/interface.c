@@ -38,6 +38,20 @@ move(int x, int y)
 }
 
 int
+getxy(int *x, int *y)
+{
+ int ret;
+ COORD xy;
+ 
+ ret = wcurses_getxy(&g_wc, &xy);
+ 
+ *x = xy.X;
+ *y = xy.Y;
+ 
+ return ret;
+}
+
+int
 get_screen_size(int *x, int *y)
 {
  int ret;
