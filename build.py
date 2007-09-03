@@ -277,6 +277,8 @@ parser.add_option('-w', '--with-source', dest='with_source', action='store_true'
                   help='Copy mpg123 source and build.py to build directory')
 parser.add_option('-m', '--mpg123-only', dest='mpg123_only', action='store_true', default=False,
                   help='Apply only to mpg123 on USB (*nix only). USB image must have been created with --with-source flag')
+parser.add_option('-u', '--with-util', dest='with_util', action='store_true', default = False,
+                  help='Copy utilities to build directory')
 (options, args) = parser.parse_args()
 
 if options.mpg123_only and platform.system() == 'Windows':
@@ -292,6 +294,9 @@ if options.mpg123_only:
 if options.with_source:
     dirs.append(('..', '', ('build.py',)))
     dirs.append(('', 'src', ('mpg123',)))
+
+if options.with_util:
+    dirs.append((os.path.join('..','util'), '', ('*.py',)))
 
 if len(args) == 0:
     cmd_arg = 'build'
