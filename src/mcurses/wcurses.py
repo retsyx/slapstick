@@ -207,27 +207,6 @@ class Window(object):
         if x + length >= len(buf[y]):
             attrs[y] += [self.default_attr] * (x+length-len(attrs[y])) 
             buf[y] += [self.default_char] * (x+length-len(buf[y]))
-    def _flatten_child(self, child, cbx=None, cby=None, sbx=None, sby=None, sex=None, sey=None):
-        if cbx == None:
-            sbx, sby = self.rect[:2]
-            cbx, cby = 0, 0
-            cex, cey = child.rect[2] - child.rect[0], child.rect[3] - child.rect[1]
-            lx, ly = cex - cbx, cey - cby
-        else:
-            lx, ly = sex - sbx, sey - sby
-            cex, cey = cbx + lx, cby + ly
-        rx, ry = sbx - cbx, sby - cby
-        #print 'bla'
-        #print sbx, sby, sex, sey
-        #print cbx, cby, cex, cey
-        #print rx, ry
-        #print lx, ly
-        for y in xrange(ly):
-            if not child.dirty[y]: continue
-            child.dirty[y] = 0
-            self.dirty[y+ry] = 1
-            self.buf[y+ry][rx:rx+lx] = child.buf[y][:lx]
-            self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:lx]
     def _init_buf(self):
         # Initialize to rect to ensure drawing doesn't
         # need any fancy logic 
@@ -494,8 +473,24 @@ class Window(object):
             self.delay = 0 # non-blocking
         else:
             self.delay = -1 # blocking
+    def _noutrefresh(self, child, cbx=None, cby=None, sbx=None, sby=None, sex=None, sey=None):
+        if cbx == None:
+            sbx, sby = child.rect[:2]
+            cbx, cby = 0, 0
+            cex, cey = child.rect[2] - child.rect[0], child.rect[3] - child.rect[1]
+            lx, ly = cex - cbx, cey - cby
+        else:
+            lx, ly = sex - sbx, sey - sby
+            cex, cey = cbx + lx, cby + ly
+        rx, ry = sbx - cbx, sby - cby
+        for y in xrange(ly):
+            if not child.dirty[y]: continue
+            child.dirty[y] = 0
+            self.dirty[y+ry] = 1
+            self.buf[y+ry][rx:rx+lx] = child.buf[y][:lx]
+            self.attrs[y+ry][rx:rx+lx] = child.attrs[y][:lx]
     def noutrefresh(self): 
-            stdscr._flatten_child(self)
+            stdscr._noutrefresh(self)
     def refresh(self, pminrow=None, pmincol=None, sminrow=None, smincol=None, smaxrow=None, smaxcol=None):
         t = (pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol)
         if None in t:
@@ -517,7 +512,7 @@ class Window(object):
         else:
             buf_bx, buf_by = 0, 0
             scr_bx, scr_by, scr_ex, scr_ey = self.rect
-        stdscr._flatten_child(self, buf_bx, buf_by, scr_bx, scr_by, scr_ex, scr_ey)
+        stdscr._noutrefresh(self, buf_bx, buf_by, scr_bx, scr_by, scr_ex, scr_ey)
         doupdate()
     def subwin(self, nlines, ncols, y=None, x=None):
         if y == None:
