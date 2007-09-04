@@ -53,11 +53,14 @@ class wObject(object):
             keys, fn, param = entry
             if key_code in keys:
                 if param == None:
-                    fn()
+                    s = fn()
                 else:    
-                    fn(eval(param))
-                return True
-        return False       
+                    s = fn(eval(param))
+                if s == None:
+                    return True
+                else:
+                    return s
+        return False
     def invalidate(self):
         self.scr.touchwin()
     def refresh(self):
@@ -252,7 +255,7 @@ class wSearchList(wObject):
         self.key_map_search = \
         [[[curses.ascii.ESC, curses.ascii.NL, curses.ascii.CR], self.mode_list, 'key_code'],
          [[curses.KEY_UP, curses.KEY_DOWN, curses.KEY_PPAGE, curses.KEY_NPAGE], self.list.dispatch_key, 'key_code'],
-         [[curses.ascii.DEL, curses.KEY_BACKSPACE], self.text_box.dispatch_key, 'curses.ascii.BS'],
+         [[curses.ascii.DEL, curses.KEY_BACKSPACE], self.redispatch_key, 'curses.ascii.BS'],
         ]
         [self._prepare_key_map(map) for map in (self.key_map_list, self.key_map_search)]
 
@@ -332,6 +335,13 @@ class wSearchList(wObject):
         self.scr.noutrefresh()
         self.list.refresh()
         self.text_box.refresh()
+
+    def redispatch_key(self, key_code):
+        # on Windows curses.ascii.BS and curses.KEY_BACKSPACE are equivalent.
+        # So check if the redispatched key is one of those. If it is,
+        # don't do anything
+        if key_code == curses.ascii.BS and curses.ascii.BS == curses.KEY_BACKSPACE: return False
+        return self.dispatch_key(key_code)
     
     def dispatch_key(self, key_code):
         if self.mode == self.MODE_LIST:
@@ -416,7 +426,7 @@ class wSlap(wObject):
             delete_media_files(items)
             # done
             self.delete_stage = 0
-            
+    
     def enter_mode(self, new_mode):
         if self.mode == new_mode:
             if self.mode_prev != self.MODE_NONE:
