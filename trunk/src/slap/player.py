@@ -105,6 +105,35 @@ class PlayerController(object):
             return
         self.track_list.extend(track_list)
 
+    def delete_track_list(self, track_list):
+        old_status = self.player.status()
+        stopped = False
+        for t in track_list:
+            if t in self.track_list:
+                i = self.track_list.index(t)
+                # if the track is the currently playing track, we need to stop
+                # playback. It will be resumed at the next available track later.
+                # If the track being deleted is in the list before the currently
+                # playing track, the current track position needs to be decremented
+                if i == self.position and self.player.status() != STOPPED and not stopped:
+                    self.player.stop()
+                    self.ignore_stop = 1
+                    stopped = True
+                    self.position -= 1 # next track will bring us back
+                elif i < self.position:
+                    self.position -= 1
+                self.track_list.remove(t)
+        # Make sure position makes sense (in case last track in list was playing and got
+        # deleted)     
+        if self.position >= len(self.track_list):
+            self.position = len(self.track_list) - 1
+        if stopped:
+            if old_status == PAUSED and stopped:
+                self.next_track()
+                self.pause()
+            elif old_status == PLAYING and stopped:
+                self.next_track()
+            
     def next_track(self):
         if self.position >= len(self.track_list)-1: return
         self.position += 1
@@ -124,4 +153,4 @@ class PlayerController(object):
     def stop(self):
         self.player.stop()
         self.player.ignore_stop = 1
-        self.position = None
+        self.position = -1

@@ -62,30 +62,6 @@ class wObject(object):
         self.scr.touchwin()
     def refresh(self):
         self.scr.noutrefresh()
-        
-class wDialog(wObject):
-    maybe, no, yes = range(3)
-    def __init__(self, scr, text):
-        self.scr = scr
-        self.text = text
-        self.result = wDialog.maybe
-        self.key_map = \
-         [[['Y', 'y', 'N', 'n', curses.ascii.ESC], self.quit, 'key_code'],
-         ]
-        self._prepare_key_map(self.key_map)
-    def draw(self):
-        self.scr.box()
-        yx = self.scr.getmaxyx()
-        self.scr.addstr(yx[0]/2, (yx[1]-len(self.text))/2, self.text)
-        action_text = 'Yes/No?'
-        self.scr.addstr(yx[0]-2, (yx[1]-len(action_text))/2, action_text)
-    def dispatch_key(self, key_code):
-        return self._dispatch_key(self.key_map, key_code)
-    def quit(self, key_code):
-        if key_code in ('Y', 'y'):
-            self.result = wDialog.yes
-        else:
-            self.result = wDialog.no
             
 class wList(wObject):
     MODE_SELECT, MODE_VIEW = range(2)
@@ -314,7 +290,8 @@ class wSearchList(wObject):
         
     def remove_items(self, items):
         for i in items:
-            self.items.remove(i)
+            if i in self.items:
+                self.items.remove(i)
         if self.item_sort:
             self.item_sort(self.items)
         self._update_items()
@@ -330,7 +307,7 @@ class wSearchList(wObject):
     
     def view_center(self, off=None):
         self.list.view_center(off)
-        
+    
     def get_active_items(self):
         return self.list.items
         
@@ -373,6 +350,7 @@ class wSearchList(wObject):
 class wSlap(wObject):
     def __init__(self, scr, tracks):
         self.done = False
+        self.delete_stage = 0
         self.player_controller = player.PlayerController()
         self.stats_init()
         self.scr = scr
@@ -399,6 +377,8 @@ class wSlap(wObject):
          [['H', 'h'], self.enter_mode, 'self.MODE_HELP'],
          [['J', 'j'], self.enter_mode, 'self.MODE_KEEP'],
          [['K', 'k'], self.enter_mode, 'self.MODE_KILL'],
+         [[curses.ascii.BS, curses.KEY_DC, curses.KEY_BACKSPACE, curses.ascii.DEL], self.delete_confirm, '1'],
+         [['Y', 'y'], self.delete_confirm, '2'],
          [['0'], self.enter_mode, 'self.MODE_STATS'],
          [['Q', 'q'], self.quit, None],
          [['N', 'n'], self.player_controller.next_track, None],
@@ -414,16 +394,40 @@ class wSlap(wObject):
         self.stats = struct()
         self.stats.key_presses = 0
 
+    def delete_confirm(self, stage):
+        if self.mode != self.MODE_KILL: return
+        if stage - self.delete_stage > 1: return
+        if stage == 1:
+            self.delete_stage = stage
+        elif stage == 2:
+            # files to delete are in K list, files to keep are in J list
+            # Get files to delete from K list
+            items = self.list[self.MODE_KILL].get_active_items()[:]
+            # remove from track list
+            self.list[self.MODE_LIST].remove_items(items)
+            # remove from queue list
+            self.list[self.MODE_QUEUE].remove_items(items)
+            # remove from the player queue
+            self.player_controller.delete_track_list(items)
+            # remove from the kill list (note that we don't empty the list because we are 
+            # removing only active items)
+            self.list[self.MODE_KILL].remove_items(items)
+            # delete the files
+            delete_media_files(items)
+            # done
+            self.delete_stage = 0
+            
     def enter_mode(self, new_mode):
         if self.mode == new_mode:
-            new_mode = self.mode_prev
+            if self.mode_prev != self.MODE_NONE:
+                new_mode = self.mode_prev
         if new_mode == self.MODE_QUEUE:
             alist = self.list[new_mode]
             alist.set_items(self.player_controller.track_list)
             alist.view_center(self.player_controller.position)
         if new_mode == self.MODE_STATS:
             self.stats_print()
-        self.mode_prev = self.mode    
+        self.mode_prev = self.mode  
         self.mode = new_mode
         self.list[self.mode].invalidate()
     
@@ -508,9 +512,11 @@ class wSlap(wObject):
             for so in ri:
                 if so == sys.stdin:
                     self.stats.key_presses += 1
+                    stage = self.delete_stage
                     #key_code = self.scr.getch()
                     key_code = self.list[self.mode].text_box.scr.getch() # XXX
                     self.dispatch_key(key_code)
+                    if stage > 0: self.delete_stage = 0 # reset delete
                     self.draw()
                     self.refresh()
                 elif so == self.player_controller.fd():
@@ -539,10 +545,12 @@ class wSlap(wObject):
     Modes
     =====
     
-    h/H           Help       (H) 
-    t/T           Track List (T)
-    <Tab>         Queue      (Q)
-    0             Stats      (0)
+    h/H           Help          (H) 
+    t/T           Track List    (T)
+    <Tab>         Queue         (Q)
+    0             Stats         (0)
+    J             Track Manager (J)
+    K             Track Delete  (K)
     
     Controls
     ========
@@ -589,6 +597,12 @@ class wSlap(wObject):
     Valid field numbers for N are:
     %s
 
+    Track Delete Mode
+    =================
+    
+    <Del>/<Backspace> Prepare to delete
+    Y/y               Confirm delete
+    
 """ % (DB_ORDER_STR)
         lines = hlp.split('\n')
         self.list[self.MODE_HELP].set_items(zip(lines, [0]*len(lines)))
@@ -674,6 +688,10 @@ def media_file_cmp(i1, i2):
     if i1[DB_TITLE] < i2[DB_TITLE]: return -1
 
     return 0      
+
+def delete_media_files(file_infos):
+    for fi in file_infos:
+        os.unlink(fi[DB_PATH])
 
 def filter_items_regex(items, s, field=DB_DISPLAY):
     if len(s) == 0: return items
