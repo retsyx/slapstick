@@ -63,6 +63,30 @@ class wObject(object):
     def refresh(self):
         self.scr.noutrefresh()
         
+class wDialog(wObject):
+    maybe, no, yes = range(3)
+    def __init__(self, scr, text):
+        self.scr = scr
+        self.text = text
+        self.result = wDialog.maybe
+        self.key_map = \
+         [[['Y', 'y', 'N', 'n', curses.ascii.ESC], self.quit, 'key_code'],
+         ]
+        self._prepare_key_map(self.key_map)
+    def draw(self):
+        self.scr.box()
+        yx = self.scr.getmaxyx()
+        self.scr.addstr(yx[0]/2, (yx[1]-len(self.text))/2, self.text)
+        action_text = 'Yes/No?'
+        self.scr.addstr(yx[0]-2, (yx[1]-len(action_text))/2, action_text)
+    def dispatch_key(self, key_code):
+        return self._dispatch_key(self.key_map, key_code)
+    def quit(self, key_code):
+        if key_code in ('Y', 'y'):
+            self.result = wDialog.yes
+        else:
+            self.result = wDialog.no
+            
 class wList(wObject):
     MODE_SELECT, MODE_VIEW = range(2)
     def __init__(self, scr):
@@ -100,15 +124,14 @@ class wList(wObject):
         self.size = x, y
         return self.size != old_size
 
-    def set_items(self, items, make_copy=False):
+    def set_items(self, items):
         if len(items) <= self.cursor:
             self.cursor = len(items)-1
         if len(items) <= self.hilite:
            self.hilite = len(items)-1
-        if make_copy:
-            self.items = items[:]
-        else:    
-            self.items = items
+        if self.cursor < 0 and len(items) > 0:
+            self.cursor = 0
+        self.items = items
 
     def cursor_move(self, off):
         self.grok_size()
@@ -170,6 +193,7 @@ class wList(wObject):
             self.cursor_move(0) # Window size changed, force a cursor update
         if self.mode == wList.MODE_SELECT:
             bi = self.cursor - self.hilite
+            if bi < 0: bi = 0
         else:
             bi = self.view_offset
         ei = min(min(len(self.items), self.size[1]) + bi, len(self.items))
@@ -187,9 +211,10 @@ class wList(wObject):
             self.scr.clrtoeol()
         bi = ei - bi
         ei = self.size[1]
-        for i in xrange(bi, ei):
-            self.scr.move(i, 0)
-            self.scr.clrtoeol()
+        if bi >= 0:
+            for i in xrange(bi, ei):
+                self.scr.move(i, 0)
+                self.scr.clrtoeol()
             
     def dispatch_key(self, key_code):
         s = self._dispatch_key(self.key_map_all, key_code)
@@ -221,13 +246,14 @@ class wTextBox(wObject):
         self.box.draw()
     def text(self):
         return self.box.gather()
-        
+            
 class wSearchList(wObject):
-    def __init__(self, scr, id=None, item_filter=None):
+    def __init__(self, scr, id=None, item_filter=None, item_sort=None):
         self.scr = scr
         self.id = id
         self.items = []
-        self.item_filter = item_filter # XXX fix this to use default if none given
+        self.item_filter = item_filter
+        self.item_sort = item_sort
         scr_maxxy = list(scr.getmaxyx())
         scr_maxxy.reverse()
         if id == None:
@@ -279,6 +305,19 @@ class wSearchList(wObject):
             self.list.cursor_move_absolute(0)
             self.text_box.clear()
             self._update_items()
+            
+    def add_items(self, items):
+        self.items.extend(items)
+        if self.item_sort:
+            self.item_sort(self.items)
+        self._update_items()
+        
+    def remove_items(self, items):
+        for i in items:
+            self.items.remove(i)
+        if self.item_sort:
+            self.item_sort(self.items)
+        self._update_items()
     
     def set_list_mode(self, mode):
         self.list.mode = mode
@@ -337,8 +376,8 @@ class wSlap(wObject):
         self.player_controller = player.PlayerController()
         self.stats_init()
         self.scr = scr
-        nof_modes = 5
-        self.MODE_NONE, self.MODE_LIST, self.MODE_QUEUE, self.MODE_HELP, self.MODE_STATS = range(nof_modes)
+        nof_modes = 7
+        self.MODE_NONE, self.MODE_LIST, self.MODE_QUEUE, self.MODE_HELP, self.MODE_KEEP, self.MODE_KILL, self.MODE_STATS = range(nof_modes)
         self.mode = self.MODE_NONE
         self.mode_prev = self.MODE_NONE
         self.list = [None] * nof_modes
@@ -348,14 +387,19 @@ class wSlap(wObject):
         alist.set_list_mode(wList.MODE_VIEW)
         alist = self.list[self.MODE_HELP] = wSearchList(self.scr, 'H', filter_items)
         alist.set_list_mode(wList.MODE_VIEW)
+        alist = self.list[self.MODE_KEEP] = wSearchList(self.scr, 'J', filter_items, sort_media_files)
+        alist.set_items(tracks[:]) # load up tracks
+        alist = self.list[self.MODE_KILL] = wSearchList(self.scr, 'K', filter_items, sort_media_files)
         alist = self.list[self.MODE_STATS] = wSearchList(self.scr, '0', filter_items)
         alist.set_list_mode(wList.MODE_VIEW)
         self.help_print()
         self.key_map = \
-        [[['H', 'h'], self.enter_mode, 'self.MODE_HELP'],
-         [['0'], self.enter_mode, 'self.MODE_STATS'],
-         [['T', 't'], self.enter_mode, 'self.MODE_LIST'],
+        [[['T', 't'], self.enter_mode, 'self.MODE_LIST'],
          [['\t'], self.enter_mode, 'self.MODE_QUEUE'],
+         [['H', 'h'], self.enter_mode, 'self.MODE_HELP'],
+         [['J', 'j'], self.enter_mode, 'self.MODE_KEEP'],
+         [['K', 'k'], self.enter_mode, 'self.MODE_KILL'],
+         [['0'], self.enter_mode, 'self.MODE_STATS'],
          [['Q', 'q'], self.quit, None],
          [['N', 'n'], self.player_controller.next_track, None],
          [['B', 'b'], self.player_controller.previous_track, None],
@@ -387,22 +431,52 @@ class wSlap(wObject):
         self.done = True
     
     def play_track_list(self):
+        alist = self.list[self.mode]
+        cursor = alist.get_cursor()
+        if cursor < 0: return
+        items = alist.get_active_items()[cursor:]
         if self.mode == self.MODE_LIST:
-            alist = self.list[self.MODE_LIST]
-            items = alist.get_active_items()[alist.get_cursor():]
             self.player_controller.start_track_list(items)
-
+        elif self.mode == self.MODE_KEEP:
+            blist = self.list[self.MODE_KILL]
+            blist.add_items(items)
+            alist.remove_items(items)
+        elif self.mode == self.MODE_KILL:
+            blist = self.list[self.MODE_KEEP]
+            blist.add_items(items)
+            alist.remove_items(items)
+            
     def queue_track(self):
+        alist = self.list[self.mode]
+        cursor = alist.get_cursor()
+        if cursor < 0: return
+        items = [alist.get_active_items()[cursor]]
         if self.mode == self.MODE_LIST:
-            alist = self.list[self.MODE_LIST]
-            items = alist.get_active_items()[[alist.get_cursor()]]
             self.player_controller.queue_track_list(items)
+        elif self.mode == self.MODE_KEEP:
+            blist = self.list[self.MODE_KILL]
+            blist.add_items(items)
+            alist.remove_items(items)
+        elif self.mode == self.MODE_KILL:
+            blist = self.list[self.MODE_KEEP]
+            blist.add_items(items)
+            alist.remove_items(items)
             
     def queue_track_list(self):
+        alist = self.list[self.mode]
+        cursor = alist.get_cursor()
+        if cursor < 0: return
+        items = alist.get_active_items()[cursor:]
         if self.mode == self.MODE_LIST:
-            alist = self.list[self.MODE_LIST]
-            items = alist.get_active_items()[alist.get_cursor():]
             self.player_controller.queue_track_list(items)
+        elif self.mode == self.MODE_KEEP:
+            blist = self.list[self.MODE_KILL]
+            blist.add_items(items)
+            alist.remove_items(items)
+        elif self.mode == self.MODE_KILL:
+            blist = self.list[self.MODE_KEEP]
+            blist.add_items(items)
+            alist.remove_items(items)
     
     def dispatch_key(self, key_code):
         if self.list[self.mode].dispatch_key(key_code): return True
