@@ -11,7 +11,7 @@
 # XXX This is a giant hack. No effort has been made to make it maintainable.
 # XXX maybe this can be more cleanly implemented as a setup.py script?
 
-import errno, glob, optparse, os, os.path, platform, shutil, stat, subprocess, sys
+import compiler, errno, glob, optparse, os, os.path, platform, shutil, stat, subprocess, sys
 
 def dir_create(path):
     pass
@@ -26,9 +26,28 @@ def file_is_newer(src, dst):
         
 def file_copy_newer(src, dst):
     if file_is_newer(src, dst):
+        if os.path.splitext(os.path.basename(src))[-1].lower() == '.py':
+            file_check_python_syntax(src)
         shutil.copy(src, dst)
         return True
     return False
+
+def file_binary_find(name):
+    path_var = 'PATH'
+    if path_var not in os.environ.keys():
+        return None
+    dirs = os.environ[path_var].split(os.path.pathsep)
+    for d in dirs:
+        full_path = os.path.join(d, name)
+        try:
+            os.stat(full_path)
+        except:
+            continue
+        return full_path
+    return None    
+
+def file_check_python_syntax(name):
+    compiler.parseFile(name)
 
 def dir_create(dir):
     try:
@@ -47,20 +66,6 @@ def dir_copy_newer(src, dst):
         shutil.copytree(src, dst)
         return True
     return False    
-
-def file_binary_find(name):
-    path_var = 'PATH'
-    if path_var not in os.environ.keys():
-        return None
-    dirs = os.environ[path_var].split(os.path.pathsep)
-    for d in dirs:
-        full_path = os.path.join(d, name)
-        try:
-            os.stat(full_path)
-        except:
-            continue
-        return full_path
-    return None    
 
 def mpg123_unix_build(mpg123_dir):
     o_dir = os.getcwd()
@@ -180,7 +185,7 @@ def cmd_build():
                 print filename,
                 if os.path.isdir(filename):
                     a = dir_copy_newer(filename, os.path.join(dir_base_dst, d[1], os.path.basename(filename)))
-                else:    
+                else:
                     a = file_copy_newer(filename, os.path.join(dir_base_dst, d[1], os.path.basename(filename)))
                 if a:
                     print '\t\t(copied)'
