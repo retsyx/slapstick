@@ -4,9 +4,16 @@
 Slap, the simple low-tech audio player, is a Python and mpg123 based audio player package designed to be simple and portable across multiple operating systems. It is ideal for slapping on your USB flash stick, thus creating a Slapstick - your go anywhere, play anywhere USB flash drive player.
 
 = Features =
-  * text based to increase its chances of being runnable on more machines
+  * Text based to increase its chances of running on more machines
   * Simple track queuing mechanism with a powerful free text or regular expression search functionality that obviates needing playlists or any form of file organization on your Slapstick.
   * Option to carry mpg123 source on Slapstick allowing you to build new binaries for newly encountered systems.
+
+= Benefits =
+  * *Price!* USB flash drives are the cheapest portable storage you can buy (cheaper than iPods, Zens and other mp3 players). Why pay extra for an mp3 player if a computer is always available nearby?
+  * *Portability*. Take and play your music everywhere without any restrictions.
+  * *No configuration*. No need to install media players on newly encountered PCs. On some PCs you may not even be able to install a media player. With Slapstick, you've got everything you need with you.
+  * *Consistency*. You don't need to remember how to use different media players on different systems. Why deal with Winamp, iTunes, Real Player, Windows Media Player, VLC, mplayer, XMMS, Noatun...? Slap is powerful and consistent everywhere.
+  * *Cleanliness*. Avoid copying music files on to work PCs. Play your music directly off of your Slapstick and avoid any conflict with your employer.
 
 = Details =
 
@@ -28,6 +35,11 @@ Portable Python is available from http://www.portablepython.com/site/home/
 == File management ==
 
 File management can get tricky if you want to remove/add certain tracks from your Slapstick and until/if Slap directly handles this aspect directly, you can install a Python based file manager on your Slapstick. For example, LFM from http://www.terra.es/personal7/inigoserna/lfm/ (does not work on Windows)
+
+
+
+
+
 
 
 
