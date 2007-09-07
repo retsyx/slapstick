@@ -11,7 +11,7 @@ Many people like to hear music. Many people spend a large portion of their day n
   * Text based to increase its chances of running on more machines
   * Simple track queuing mechanism with a powerful free text or regular expression search functionality that obviates needing playlists or any form of file organization on your Slapstick.
   * Option to carry mpg123 source on Slapstick allowing you to build new binaries for newly encountered systems.
-  * Manage the tracks on your Slapstick using the powerful Slap interface
+  * Manage the tracks on your Slapstick using the powerful Slap interface (currently only available through subversion)
 
 = Benefits =
   * *Price!* USB flash drives are the cheapest portable storage you can buy (cheaper than iPods, Zens and other mp3 players). Why pay extra for an mp3 player if a computer is always available nearby?
@@ -36,7 +36,6 @@ Once you've obtained Slap, just copy it to your USB stick, copy mp3 files (and d
 Python 2.5 is installed on all OS X machines and can be expected to be installed on most variants of `*`NIX machines you'll be inclined to use as music players. Windows, on the other hand, is unlikely to have Python installed and you may not always be able to install it. The solution is to download and install Portable Python on your Slapstick (at a storage cost of ~30MB). You can then run on Slap on any Windows machine, with or without Python installed locally.
 
 Portable Python is available from http://www.portablepython.com/site/home/
-
 
 
 
