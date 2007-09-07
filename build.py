@@ -219,9 +219,6 @@ def cmd_build():
         wcurses_binary_path_src = wcurses_build(wcurses_dir)
         wcurses_binary_path_dst = os.path.join(dir_base_dst, 'mcurses', os.path.basename(wcurses_binary_path_src)) 
         file_copy_newer(wcurses_binary_path_src, wcurses_binary_path_dst)
-        wcurses_py_path_src = os.path.join(wcurses_dir, 'wcurses_c.py')
-        wcurses_py_path_dst = os.path.join(dir_base_dst, 'mcurses', 'wcurses_c.py')
-        file_copy_newer(wcurses_py_path_src, wcurses_py_path_dst)
 
         print 'Building wselect'
         wselect_dir = os.path.join(dir_base_src, 'mselect', 'wselect')
