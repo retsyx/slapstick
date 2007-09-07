@@ -190,36 +190,6 @@
 			UniqueIdentifier="{4FFFEEF1-C7A5-4376-1266-11325452321F}"
 			>
 			<File
-				RelativePath=".\interface.c"
-				>
-			</File>
-			<File
-				RelativePath=".\interface.i"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="echo In order to function correctly, please ensure the following environment variables are correctly set:&#x0D;&#x0A;echo PYTHON_INCLUDE: %PYTHON_INCLUDE%&#x0D;&#x0A;echo PYTHON_LIB: %PYTHON_LIB%&#x0D;&#x0A;echo SWIG_BIN: %SWIG_BIN%&#x0D;&#x0A;echo on&#x0D;&#x0A;&quot;%SWIG_BIN%\swig&quot; -python &quot;$(InputPath)&quot;&#x0D;&#x0A;"
-						Outputs="$(InputName)_wrap.c"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="echo In order to function correctly, please ensure the following environment variables are correctly set:&#x0D;&#x0A;echo PYTHON_INCLUDE: %PYTHON_INCLUDE%&#x0D;&#x0A;echo PYTHON_LIB: %PYTHON_LIB%&#x0D;&#x0A;echo SWIG_BIN: %SWIG_BIN%&#x0D;&#x0A;echo on&#x0D;&#x0A;&quot;%SWIG_BIN%\swig&quot; -python &quot;$(InputPath)&quot;&#x0D;&#x0A;"
-						Outputs="$(InputName)_wrap.c"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\interface_wrap.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wcurses.c"
 				>
 			</File>
@@ -229,14 +199,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{99999999-9988-bb0b-77EB-32543562E45B}"
 			>
-			<File
-				RelativePath=".\interface.h"
-				>
-			</File>
-			<File
-				RelativePath=".\wcurses.h"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

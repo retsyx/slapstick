@@ -11,7 +11,9 @@
 import msvcrt, sys, time, weakref, winsound
 
 import ascii
-import wcurses_c as wc
+import _wcurses_c
+
+wc = _wcurses_c.WCurses()
 
 stdscr = None
 COLORS = COLOR_PAIRS = 256
@@ -74,21 +76,11 @@ ACS_LTEE = 0x251D
 ACS_RTEE = 0x2525
 ACS_CKBOARD = 0x2591
 
-def _screen_size():
-    xx = wc.new_intp()
-    yy = wc.new_intp()
-    wc.get_screen_size(xx, yy)
-    x = wc.intp_value(xx)
-    y = wc.intp_value(yy)
-    wc.delete_intp(xx)
-    wc.delete_intp(yy)
-    return x, y
-
 def get_cols():
-    return _screen_size()[0]
+    return wc.get_screen_size()[0]
 
 def get_lines():
-    return _screen_size()[1]
+    return wc.get_screen_size()[1]
     
 def beep():
     winsound.Beep(400, 100)
@@ -147,7 +139,7 @@ def newwin(nlines, ncols, y=None, x=None):
         y, x = nlines, ncols
         nlines, ncols = None, None
     if nlines == None:
-        sx, sy = _screen_size()
+        sx, sy = wc.get_screen_size()
         nlines, ncols = sy - y, sx - x
     if nlines < 0 or ncols < 0: raise Exception, 'Illegal parameters'
     return Window((x, y, x+ncols, y+nlines), pad=False)
@@ -226,9 +218,6 @@ class Window(object):
             else:   
                 x = 0
         self.xy = [x, y]
-    def _ptr_array_build(self, a, lst):
-        for i in xrange(len(lst)):
-            wc.short_array_setitem(a, i, int(lst[i]))
     def addch(self, y, x=None, ch=None, attr=None):
         # emulate silly parameter combinations
         # ch             3
@@ -367,17 +356,11 @@ class Window(object):
         if self != stdscr: return
         bx, by, ex, ey = self.rect
         x = bx
-        a = wc.new_short_array(ex-bx)
         for y in xrange(by, ey):
             if self.dirty[y]:
-                lnsx = self.attrs[y]
-                self._ptr_array_build(a, lnsx)
-                wc.write_row_attrs(x, y, len(lnsx), a)
-                lnsx = self.buf[y]
-                self._ptr_array_build(a, lnsx)
-                wc.write_row_chars(x, y, len(lnsx), a)
+                wc.write_row_attrs(x, y, self.attrs[y])
+                wc.write_row_chars(x, y, self.buf[y])
                 self.dirty[y] = 0
-        wc.delete_short_array(a)        
         # move cursor
         wc.move(self.xy[0] + self.rect[0], self.xy[1] + self.rect[1])
     def erase(self):
