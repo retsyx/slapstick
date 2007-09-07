@@ -662,9 +662,9 @@ def scan_media_file(filename):
         except:
             ordinal = 0
         if not artist and not title:
-            info[0] = os.path.basename(filename)
+            info[DB_DISPLAY] = os.path.basename(filename)
         else:
-            t = [tt for tt in [artist, album, title] if tt != None]
+            t = [tt.lstrip().rstrip() for tt in [artist, album, title] if tt != None]
             info[DB_DISPLAY] = ' - '.join(t).encode('latin-1', 'replace') # could make configurable
     except:
         info[DB_DISPLAY] = os.path.splitext(os.path.basename(filename))[0]
@@ -694,6 +694,17 @@ def media_file_cmp(i1, i2):
     if i1[DB_ALBUM] < i2[DB_ALBUM]: return -1
     if i1[DB_ORDINAL] > i2[DB_ORDINAL]: return 1
     if i1[DB_ORDINAL] < i2[DB_ORDINAL]: return -1
+    # We've reached a fork in the road and we must take it!
+    # If both ordinals are undefined (0) then it may be
+    # smarter to sort based on the complete filename instead
+    # of just the title. It is assumed folks will number their
+    # filenames in some semi-consistent fashion, especially
+    # for those files that are equal in artist & album
+    if i1[DB_ORDINAL] == 0:
+       f1 = os.path.splitext(os.path.basename(i1[DB_PATH]))[0].lower()
+       f2 = os.path.splitext(os.path.basename(i2[DB_PATH]))[0].lower()
+       if f1 > f2: return 1
+       if f1 < f2: return -1
     if i1[DB_TITLE] > i2[DB_TITLE]: return 1
     if i1[DB_TITLE] < i2[DB_TITLE]: return -1
 
