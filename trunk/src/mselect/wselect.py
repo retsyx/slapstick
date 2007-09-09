@@ -8,30 +8,21 @@
 
 # emulate select call for Windows
 
-import wselect_c as ws
+import _wselect_c as ws
 import msvcrt
 
 # XXX currently only supports rlist
-# Limited to wselect_c.MAX_HANDLES files to select for
 def select(rlist, wlist, xlist, timeout=None):
     if timeout == None:
-        timo = ws.INFINITE 
+        timo = -1
     else:
         timo = long(timeout*1000) # convert from float sec. to ms
     if wlist != None and len(wlist) > 0: raise Exception, 'wlist not supported'
     if xlist != None and len(xlist) > 0: raise Exception, 'xlist not supported'
     if rlist == None or len(rlist) == 0: return [], [], []
-    if len(rlist) > ws.MAX_HANDLES: raise Exception, 'too many files (%d > %d)' % (len(rlist), ws.MAX_HANDLES)
-
-    a = ws.new_int_array(ws.MAX_HANDLES)
-    try:
-        for i in xrange(len(rlist)):
-            ws.int_array_setitem(a, i, msvcrt.get_osfhandle(rlist[i].fileno()))
-        n = ws.wselect(len(rlist), a, timo)
-    finally:
-        ws.delete_int_array(a) 
-    
+    a = [msvcrt.get_osfhandle(h.fileno()) for h in rlist]
+    n = ws.select(a, timo)
     # Should we raise an exception on error?    
     if n <= 0: return [], [], []
-    return [rlist[n - ws.OFFSET]], [], []
+    return [rlist[n - 1]], [], []
 
