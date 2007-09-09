@@ -104,8 +104,8 @@ wcurses_move(WCursesObject *wc, PyObject *args)
 	xy.X = x + wc->extent.Left;
 	xy.Y = y + wc->extent.Top;
 	
-	if (xy.X < wc->extent.Left  ||  xy.X >= wc->extent.Right) return NULL;
-	if (xy.Y < wc->extent.Top  ||  xy.Y >= wc->extent.Bottom) return NULL;
+	if (xy.X < wc->extent.Left  ||  xy.X > wc->extent.Right) return NULL;
+	if (xy.Y < wc->extent.Top  ||  xy.Y > wc->extent.Bottom) return NULL;
 	
 	SetConsoleCursorPosition(wc->std_o, xy);
 	
