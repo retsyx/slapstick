@@ -225,9 +225,6 @@ def cmd_build():
         wselect_binary_path_src = wselect_build(wselect_dir)
         wselect_binary_path_dst = os.path.join(dir_base_dst, 'mselect', os.path.basename(wselect_binary_path_src)) 
         file_copy_newer(wselect_binary_path_src, wselect_binary_path_dst)
-        wselect_py_path_src = os.path.join(wselect_dir, 'wselect_c.py')
-        wselect_py_path_dst = os.path.join(dir_base_dst, 'mselect', 'wselect_c.py')
-        file_copy_newer(wselect_py_path_src, wselect_py_path_dst)
     
 def cmd_clean():
     if platform.system() == 'Windows':
