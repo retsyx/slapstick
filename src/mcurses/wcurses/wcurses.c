@@ -143,99 +143,99 @@ wcurses_echo(WCursesObject *wc, PyObject *args)
 static PyObject *
 wcurses_write_row_attrs(WCursesObject *wc, PyObject *args)
 {
- DWORD written;
- COORD xy;
- int x, y, i, len;
- PyObject *list, *item;
- WORD *ws;
+    DWORD written;
+    COORD xy;
+    int x, y, i, len;
+    PyObject *list, *item;
+    WORD *ws;
  
- if (!PyArg_ParseTuple(args, "iiO", &x, &y, &list))
-    return NULL;
- if (!PyList_Check(list))
-    return NULL;
+    if (!PyArg_ParseTuple(args, "iiO", &x, &y, &list))
+        return NULL;
+    if (!PyList_Check(list))
+        return NULL;
     
- len = (int)PyList_Size(list);
- if (len >= wc->extent.Right - wc->extent.Left)
-  {
-   len = wc->extent.Right - wc->extent.Left;
-  }
+    len = (int)PyList_Size(list);
+    if (len >= wc->extent.Right - wc->extent.Left)
+    {
+        len = wc->extent.Right - wc->extent.Left;
+    }
   
- ws = PyMem_Malloc(sizeof(WORD)*len);
- if (!ws)
-  {
-   return NULL;
-  }
+    ws = PyMem_Malloc(sizeof(WORD)*len);
+    if (!ws)
+    {
+        return NULL;
+    }
  
- for (i = 0; i < len; i++)
-   {
-    item = PyList_GetItem(list, i);
-    if (!PyInt_Check(item))
-     {
-      PyMem_Free(ws);
-      return NULL;
-     }
+    for (i = 0; i < len; i++)
+    {
+        item = PyList_GetItem(list, i);
+        if (!PyInt_Check(item))
+        {
+            PyMem_Free(ws);
+            return NULL;
+        }
      
-    ws[i] = (WORD)PyInt_AsLong(item); 
-   }
+        ws[i] = (WORD)PyInt_AsLong(item); 
+    }
      
- xy.X = x + wc->extent.Left;
- xy.Y = y + wc->extent.Top;
+    xy.X = x + wc->extent.Left;
+    xy.Y = y + wc->extent.Top;
  
- WriteConsoleOutputAttribute(wc->std_o, ws, len, xy, &written);
+    WriteConsoleOutputAttribute(wc->std_o, ws, len, xy, &written);
  
- PyMem_Free(ws);
+    PyMem_Free(ws);
   
- Py_INCREF(Py_None);
- return Py_None;
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyObject *
 wcurses_write_row_chars(WCursesObject *wc, PyObject *args)
 {
- DWORD written;
- COORD xy;
- int x, y, i, len;
- PyObject *list, *item;
- WORD *ws;
+    DWORD written;
+    COORD xy;
+    int x, y, i, len;
+    PyObject *list, *item;
+    WORD *ws;
  
- if (!PyArg_ParseTuple(args, "iiO", &x, &y, &list))
-    return NULL;
- if (!PyList_Check(list))
-    return NULL;
+    if (!PyArg_ParseTuple(args, "iiO", &x, &y, &list))
+        return NULL;
+    if (!PyList_Check(list))
+        return NULL;
     
- len = (int)PyList_Size(list);
- if (len >= wc->extent.Right - wc->extent.Left)
-  {
-   len = wc->extent.Right - wc->extent.Left;
-  }
+    len = (int)PyList_Size(list);
+    if (len >= wc->extent.Right - wc->extent.Left)
+    {
+        len = wc->extent.Right - wc->extent.Left;
+    }
   
- ws = PyMem_Malloc(sizeof(WORD)*len);
- if (!ws)
-  {
-   return NULL;
-  }
+    ws = PyMem_Malloc(sizeof(WORD)*len);
+    if (!ws)
+    {
+        return NULL;
+    }
  
- for (i = 0; i < len; i++)
-   {
-    item = PyList_GetItem(list, i);
-    if (!PyInt_Check(item))
-     {
-      PyMem_Free(ws);
-      return NULL;
-     }
+    for (i = 0; i < len; i++)
+    {
+        item = PyList_GetItem(list, i);
+        if (!PyInt_Check(item))
+        {
+            PyMem_Free(ws);
+            return NULL;
+        }
      
-    ws[i] = (WORD)PyInt_AsLong(item); 
-   }
+        ws[i] = (WORD)PyInt_AsLong(item); 
+    }
  
- xy.X = x + wc->extent.Left;
- xy.Y = y + wc->extent.Top;
+    xy.X = x + wc->extent.Left;
+    xy.Y = y + wc->extent.Top;
 
- WriteConsoleOutputCharacter(wc->std_o, ws, len, xy, &written);
+    WriteConsoleOutputCharacter(wc->std_o, ws, len, xy, &written);
  
- PyMem_Free(ws);
+    PyMem_Free(ws);
  
- Py_INCREF(Py_None);
- return Py_None;
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static int
