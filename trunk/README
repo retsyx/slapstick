@@ -25,15 +25,13 @@ Building Slap on Windows
 
 Building Slap on Windows requires:
 
-1. SWIG 1.3.31 or better (http://www.swig.org)
-2. Microsoft Visual C++ Express or better (http://msdn.microsoft.com/vstudio/express/visualc/)
-3. Microsoft Platform SDK (http://www.microsoft.com)
+1. Microsoft Visual C++ Express or better (http://msdn.microsoft.com/vstudio/express/visualc/)
+2. Microsoft Platform SDK (http://www.microsoft.com)
 
 Once the above are installed, you need to set a few environment variables:
 
 1. PYTHON_INCLUDE (e.g. c:\python25\Include)
 2. PYTHON_LIB (e.g. c:\python25\libs\python25.lib)
-3. SWIG_BIN (e.g. c:\Program Files\swigwin-1.3.31)
 
 You also need to have a properly setup Visual Studio environment. The easiest way to do this is to use the Visual Studio command prompt (e.g. Start menu->All Programs->Visual C++ Studio Express Edition->Visual Studio Tools->Visual Studio 2005 Command Prompt). In the command prompt cd to the Slap directory and execute build.py.
 
@@ -43,8 +41,6 @@ Windows build notes
 ===================
 
 mpg123 will compile with ~720 warnings on Windows - that's a lot of warnings. Fixing all these warnings would probably require extensive changes in the mpg123 code itself. I've tried to keep changes here to a minimum. 
-
-SWIG also appears to raise a couple warnings in its generated code.
 
 Building mpg123 on your stick
 =============================
