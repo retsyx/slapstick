@@ -143,7 +143,6 @@ def env_var_test():
     env = {}
     env['PYTHON_INCLUDE'] = os.getenv('PYTHON_INCLUDE')
     env['PYTHON_LIB'] = os.getenv('PYTHON_LIB')
-    env['SWIG_BIN'] = os.getenv('SWIG_BIN')
     for k, v in env.iteritems():
         if v:
             print k, '=', v
