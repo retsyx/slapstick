@@ -184,7 +184,7 @@
 			UniqueIdentifier="{4F902631-23A5-3F76-A043-2AFFFFFFF2FF}"
 			>
 			<File
-				RelativePath=".\_wselect_c.c"
+				RelativePath=".\wselect.c"
 				>
 			</File>
 		</Filter>
