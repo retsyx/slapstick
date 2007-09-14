@@ -648,15 +648,15 @@ def scan_media_file(filename):
         try:
             artist = ''.join(fid3['artist'])
         except: 
-            artist = None
+            artist = ''
         try:    
             album = ''.join(fid3['album'])
         except:
-            album = None
+            album = ''
         try:    
             title = ''.join(fid3['title'])
         except:
-            title = None
+            title = ''
         try:
             ordinal = int(''.join(fid3['tracknumber']))
         except:
@@ -668,9 +668,9 @@ def scan_media_file(filename):
             info[DB_DISPLAY] = ' - '.join(t).encode('latin-1', 'replace') # could make configurable
     except:
         info[DB_DISPLAY] = os.path.splitext(os.path.basename(filename))[0]
-        artist = None
-        album = None
-        title = None
+        artist = ''
+        album = ''
+        title = ''
         ordinal = 0
         
     info[DB_ARTIST] = artist
@@ -688,12 +688,18 @@ def sort_media_files(file_infos):
     file_infos.sort(media_file_cmp)
 
 def media_file_cmp(i1, i2):
-    if i1[DB_ARTIST] > i2[DB_ARTIST]: return 1
-    if i1[DB_ARTIST] < i2[DB_ARTIST]: return -1
-    if i1[DB_ALBUM] > i2[DB_ALBUM]: return 1
-    if i1[DB_ALBUM] < i2[DB_ALBUM]: return -1
-    if i1[DB_ORDINAL] > i2[DB_ORDINAL]: return 1
-    if i1[DB_ORDINAL] < i2[DB_ORDINAL]: return -1
+    t1 = i1[DB_ARTIST].lower()
+    t2 = i2[DB_ARTIST].lower()
+    if t1 > t2: return 1
+    if t1 < t2: return -1
+    t1 = i1[DB_ALBUM].lower()
+    t2 = i2[DB_ALBUM].lower()
+    if t1 > t2: return 1
+    if t1 < t2: return -1
+    t1 = i1[DB_ORDINAL]
+    t2 = i2[DB_ORDINAL]
+    if t1 > t2: return 1
+    if t1 < t2: return -1
     # We've reached a fork in the road and we must take it!
     # If both ordinals are undefined (0) then it may be
     # smarter to sort based on the complete filename instead
@@ -701,12 +707,14 @@ def media_file_cmp(i1, i2):
     # filenames in some semi-consistent fashion, especially
     # for those files that are equal in artist & album
     if i1[DB_ORDINAL] == 0:
-       f1 = os.path.splitext(os.path.basename(i1[DB_PATH]))[0].lower()
-       f2 = os.path.splitext(os.path.basename(i2[DB_PATH]))[0].lower()
-       if f1 > f2: return 1
-       if f1 < f2: return -1
-    if i1[DB_TITLE] > i2[DB_TITLE]: return 1
-    if i1[DB_TITLE] < i2[DB_TITLE]: return -1
+       t1 = os.path.splitext(os.path.basename(i1[DB_PATH]))[0].lower()
+       t2 = os.path.splitext(os.path.basename(i2[DB_PATH]))[0].lower()
+       if t1 > t2: return 1
+       if t1 < t2: return -1
+    t1 = i1[DB_TITLE].lower()
+    t2 = i2[DB_TITLE].lower()
+    if t1 > t2: return 1
+    if t1 < t2: return -1
 
     return 0      
 
