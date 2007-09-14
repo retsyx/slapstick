@@ -664,7 +664,7 @@ def scan_media_file(filename):
         if not artist and not title:
             info[DB_DISPLAY] = os.path.splitext(os.path.basename(filename))[0]
         else:
-            t = [tt.lstrip().rstrip() for tt in [artist, album, title] if tt != None]
+            t = [tt.lstrip().rstrip() for tt in [artist, album, title] if tt != '']
             info[DB_DISPLAY] = ' - '.join(t).encode('latin-1', 'replace') # could make configurable
     except:
         info[DB_DISPLAY] = os.path.splitext(os.path.basename(filename))[0]
