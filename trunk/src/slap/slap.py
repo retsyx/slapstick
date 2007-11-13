@@ -394,8 +394,8 @@ class wSlap(wObject):
          [['N', 'n'], self.player_controller.next_track, None],
          [['B', 'b'], self.player_controller.previous_track, None],
          [[curses.ascii.SP], self.player_controller.pause, None],
-         [[curses.ascii.NL, curses.ascii.CR], self.play_track_list, None],
-         [["'", '"'], self.queue_track_list, None],
+         [[curses.ascii.NL, curses.ascii.CR], self.queue_track_list, None],
+         [["'", '"'], self.play_track_list, None],
          [['\\', '|'], self.queue_track, None],
         ]
         self._prepare_key_map(self.key_map)
