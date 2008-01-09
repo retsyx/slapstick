@@ -137,9 +137,7 @@ class PlayerController(object):
     def next_track(self):
         if self.position >= len(self.track_list)-1: return
         self.position += 1
-        if self.position >= self.max_history:
-            del self.track_list[:self.position-self.max_history+1]
-            self.position = self.max_history-1    
+        self.clean_old_tracks()
         self.player.play(self.track_list[self.position][-1])
 
     def previous_track(self):
@@ -147,6 +145,20 @@ class PlayerController(object):
         self.position -= 1
         self.player.play(self.track_list[self.position][-1])
 
+    def goto_track(self, n):
+        if n < 0:
+            n = 0
+        elif n >= len(self.track_list):
+            n = len(self.track_list) - 1
+        self.position = n
+        self.clean_old_tracks()
+        self.player.play(self.track_list[self.position][-1])
+            
+    def clean_old_tracks(self):
+        if self.position >= self.max_history:
+            del self.track_list[:self.position-self.max_history+1]
+            self.position = self.max_history-1    
+        
     def pause(self):
         self.player.pause()
 
