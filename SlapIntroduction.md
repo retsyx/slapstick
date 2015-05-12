@@ -1,0 +1,46 @@
+# Introduction #
+
+Slap, the simple low-tech audio player, is a Python and mpg123 based audio player package designed to be simple and portable across multiple operating systems. It is ideal for slapping on your USB flash stick, thus creating a Slapstick - your go anywhere, play anywhere USB flash drive player.
+
+# Premise #
+
+Many people like to hear music. Many people spend a large portion of their day near PCs. Most PCs have USB ports and an audio capability. With all this functionality so close so long why do you need a dedicated portable mp3 player with all its attendant problems (price premium, cumbersome specialized management software, copy restrictions, battery charging worries)? It is much easier to manage and move your files on a USB flash drive so why shouldn't you have a music player on your flash drive that runs on every PC you plug it in to?
+
+# Features #
+  * Text based to increase its chances of running on more machines
+  * Simple track queuing mechanism with a powerful free text or regular expression search functionality that obviates needing playlists or any form of file organization on your Slapstick.
+  * Option to carry mpg123 source on Slapstick allowing you to build new binaries for newly encountered systems.
+  * Manage the tracks on your Slapstick using the powerful Slap interface (currently only available through subversion)
+
+# Benefits #
+  * **Price!** USB flash drives are the cheapest portable storage you can buy (cheaper than iPods, Zens and other mp3 players). Why pay extra for an mp3 player if a computer is always available nearby?
+  * **Portability**. Take and play your music everywhere without any restrictions.
+  * **No configuration**. No need to install media players on newly encountered PCs. On some PCs you may not even be able to install a media player. With Slapstick, you've got everything you need with you.
+  * **Consistency**. You don't need to remember how to use different media players on different systems. Why deal with Winamp, iTunes, Real Player, Windows Media Player, VLC, mplayer, XMMS, Noatun...? Slap is powerful and consistent everywhere.
+  * **Cleanliness**. Avoid copying music files on to work PCs. Play your music directly off of your Slapstick and avoid any conflict with your employer.
+
+# Details #
+
+There are a few ways to obtain a working variant of Slap:
+  * Download a ready made package that has been tested on Windows XP, OS X and FreeBSD 6.2 (it should work on Linux as well but this has not been tested)
+  * Obtain the source tar ball and build it yourself
+  * Obtain the source through subversion (svn) and build it yourself
+
+Once you've obtained Slap, just copy it to your USB stick, copy mp3 files (and directories) in to the 'media' directory and you are ready to go with your new Slapstick.
+
+# Further improving your Slapstick #
+
+## Portable Python for Windows ##
+
+Python 2.5 is installed on all OS X machines and can be expected to be installed on most variants of `*`NIX machines you'll be inclined to use as music players. Windows, on the other hand, is unlikely to have Python installed and you may not always be able to install it. The solution is to download and install Portable Python on your Slapstick (at a storage cost of ~30MB). You can then run on Slap on any Windows machine, with or without Python installed locally.
+
+Portable Python is available from http://www.portablepython.com/site/home/
+
+
+
+
+
+
+
+
+
