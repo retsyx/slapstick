@@ -10,7 +10,7 @@
 import mcurses as curses
 import mselect as select
 import fnmatch, os, socket, re, sys, threading, time
-import mutagen, mutagen.easyid3
+import mutagen
 import player
 from mcurses import textbox
 
@@ -644,21 +644,22 @@ def list_files(path='.', file_specs=()):
 def scan_media_file(filename):
     info = [0] * DB_ENTRY_SIZE
     try:
-        fid3 = mutagen.easyid3.EasyID3(filename)
+        f = mutagen.File(filename, options=None, easy=True)
         try:
-            artist = ''.join(fid3['artist'])
+            artist = ''.join(f['artist'])
         except: 
             artist = ''
         try:    
-            album = ''.join(fid3['album'])
+            album = ''.join(f['album'])
         except:
             album = ''
         try:    
-            title = ''.join(fid3['title'])
+            title = ''.join(f['title'])
         except:
             title = ''
         try:
-            ordinal = int(''.join(fid3['tracknumber']))
+            tracknumber = ''.join(f['tracknumber']).split('/')[0]
+            ordinal = int(tracknumber)
         except:
             ordinal = 0
         if not artist and not title:

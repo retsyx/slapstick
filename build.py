@@ -171,6 +171,7 @@ def cmd_build():
         env_msvc_test()
         
     print 'Creating directories'
+    dir_create(dir_base_dst)
     for d in dirs:
         if d[1] != '':
             dir_create(os.path.join(dir_base_dst, d[1]))
@@ -260,7 +261,7 @@ dir_base_dst = './build'
 dirs = [('slap', '', ('*.py',)),
         ('mcurses', 'mcurses', ('*.py',)),
         ('mselect', 'mselect', ('*.py',)),
-        ('mutagen', 'mutagen', ('*.py',)),
+        ('mutagen', 'mutagen', ('*.py', 'asf', 'id3', 'mp4')),
         ('', 'player', []),
         ('', 'media', []),
        ] 

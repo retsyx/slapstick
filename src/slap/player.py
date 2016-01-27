@@ -12,6 +12,7 @@
 import os
 import platform
 import subprocess
+import time
 
 STOPPED, PAUSED, PLAYING = range(3)
 
@@ -22,6 +23,81 @@ def secs_to_tuple(s):
     m = secs/60
     secs %= 60
     return h, m , secs
+
+class VLCPlayer(object):
+    def __init__(self):
+        system = platform.system()
+        if system == 'Darwin':
+            self.pn = 'player/VLC-%s/VLC.app/Contents/MacOS/VLC' % (system), '-I', 'rc'
+        else:
+            self.pn = 'player/VLC-%s/vlc' % (system), '-I', 'rc'
+        self.p = subprocess.Popen(self.pn, 
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT)
+        self.__time_left = (0L, 0L, 0L)
+        self.__time_elapsed = (0L, 0L, 0L)
+        self.__status = STOPPED
+        for i in xrange(3):
+            self.p.stdout.readline()
+    def __del__(self):
+        self.p.stdin.write('quit\n')
+        self.p.stdout.close()
+        self.p.stdin.close()
+        self.p.wait()
+    def fd(self):
+        return self.p.stdout
+    def update(self):
+        self.p.stdin.write('status\n')        
+        while 1:
+            l = self.p.stdout.readline()
+            sl = l.split()
+            if len(sl) < 1: continue
+            if sl[0] == '>':
+                sl = sl[1:]
+            if len(sl) < 2: continue
+            if sl[1] == 'state':
+                if sl[2] == 'stopped':
+                    self.__status = STOPPED
+                elif sl[2] == 'playing':
+                    self.__status = PLAYING
+                elif sl[2] == 'paused':
+                    self.__status = PAUSED
+                break
+        if self.__status != STOPPED:        
+            self.p.stdin.write('get_length\n')
+            while 1:
+                l = self.p.stdout.readline().replace('>', '').strip()
+                if len(l) == 0: break
+                if l[0] >= '0' and l[0] <= '9': break
+                
+            if len(l) > 0:
+                duration = int(l)
+            else:
+                duration = 0
+            self.p.stdin.write('get_time\n')
+            while 1:
+                l = self.p.stdout.readline().replace('>', '').strip()
+                if len(l) == 0: break
+                if l[0] >= '0' and l[0] <= '9': break
+            if len(l) > 0:
+                self.__time_elapsed = int(l)
+            else:
+                self.__time_elapsed = 0
+            self.__time_left = duration - self.__time_elapsed
+    def play(self, filename):
+        self.p.stdin.write('clear\n')
+        self.p.stdin.write('add %s\n' % (filename))
+    def pause(self):
+        self.p.stdin.write('pause\n')
+    def stop(self):
+        self.p.stdin.write('stop\n')
+    def status(self):
+        return self.__status
+    def time_elapsed(self): 
+        return secs_to_tuple(self.__time_elapsed)
+    def time_left(self): 
+        return secs_to_tuple(self.__time_left)
 
 class Player(object):
     def __init__(self):
@@ -68,10 +144,13 @@ class Player(object):
 
 class PlayerController(object):
     def __init__(self, max_history=100):
-        self.player = Player()
+        try:
+            self.player = VLCPlayer()
+        except:
+            self.player = Player()
         self.track_list = []
         self.position = -1
-        self.ignore_stop = 0
+        self.ignore_stop = False
         self.max_history = max_history
 
     def fd(self): return self.player.fd()
@@ -82,7 +161,7 @@ class PlayerController(object):
         new_status = self.player.status()
         if old_status != new_status and new_status == STOPPED:
             if self.ignore_stop:
-                self.ignore_stop = 0
+                self.ignore_stop = False
             else:    
                 self.next_track()
                 return True
@@ -90,7 +169,7 @@ class PlayerController(object):
 
     def start_track_list(self, track_list):
         """ Immediately start playing track list """
-        if self.player.status() != STOPPED: self.ignore_stop = 1
+        if self.player.status() != STOPPED: self.ignore_stop = True
         self.player.stop()
         self.position = len(self.track_list) - 1
         self.track_list.extend(track_list)
@@ -117,7 +196,7 @@ class PlayerController(object):
                 # playing track, the current track position needs to be decremented
                 if i == self.position and self.player.status() != STOPPED and not stopped:
                     self.player.stop()
-                    self.ignore_stop = 1
+                    self.ignore_stop = True
                     stopped = True
                     self.position -= 1 # next track will bring us back
                 elif i < self.position:
@@ -164,5 +243,45 @@ class PlayerController(object):
 
     def stop(self):
         self.player.stop()
-        self.player.ignore_stop = 1
+        self.ignore_stop = True
         self.position = -1
+
+def test():
+    player = VLCPlayer()
+    player.update()
+    print "Status", player.status()
+    player.update()
+    print "Status", player.status()
+    print "Playing..."
+    player.play('media/Sun.m4a')
+    print "Sleeping 10..."
+    time.sleep(10)
+    player.update()
+    print "Status", player.status()
+    player.update()
+    print "Status", player.status()
+    print "Pausing..."
+    player.pause()
+    print "Sleeping 10..."
+    player.update()
+    print "Status", player.status()
+    player.update()
+    print "Status", player.status()
+    time.sleep(10)
+    print "Resuming..."
+    player.pause()
+    player.update()
+    print "Status", player.status()
+    player.update()
+    print "Status", player.status()
+    print "Sleeping 10..."
+    player.update()
+    print "Status", player.status()
+    player.update()
+    print "Status", player.status()
+    time.sleep(10)
+    print "Done."
+
+if __name__ == '__main__':
+    test()
+
